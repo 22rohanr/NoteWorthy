@@ -1,0 +1,83 @@
+import { Link } from 'react-router-dom';
+import { Star, Heart } from 'lucide-react';
+import { Fragrance } from '@/types/fragrance';
+import { cn } from '@/lib/utils';
+import { useState } from 'react';
+
+interface FragranceCardProps {
+  fragrance: Fragrance;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+export function FragranceCard({ fragrance, className, style }: FragranceCardProps) {
+  const [isWishlisted, setIsWishlisted] = useState(false);
+
+  return (
+    <Link
+      to={`/fragrance/${fragrance.id}`}
+      className={cn(
+        "group relative flex flex-col bg-card rounded-lg overflow-hidden shadow-soft hover:shadow-card transition-all duration-300",
+        className
+      )}
+      style={style}
+    >
+      {/* Image container */}
+      <div className="relative aspect-[3/4] bg-gradient-to-b from-secondary/50 to-secondary overflow-hidden">
+        <div className="absolute inset-0 flex items-center justify-center">
+          {/* Placeholder bottle silhouette */}
+          <div className="w-20 h-32 rounded-t-full bg-gradient-to-b from-primary/20 to-primary/40 flex items-end justify-center pb-4">
+            <div className="w-12 h-16 bg-gradient-to-b from-primary/30 to-primary/60 rounded-sm" />
+          </div>
+        </div>
+        
+        {/* Wishlist button */}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            setIsWishlisted(!isWishlisted);
+          }}
+          className="absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <Heart
+            className={cn(
+              "h-4 w-4 transition-colors",
+              isWishlisted ? "fill-primary text-primary" : "text-foreground"
+            )}
+          />
+        </button>
+
+        {/* Concentration badge */}
+        <span className="absolute bottom-3 left-3 px-2 py-0.5 text-xs font-medium bg-background/90 backdrop-blur-sm rounded">
+          {fragrance.concentration}
+        </span>
+      </div>
+
+      {/* Content */}
+      <div className="p-4 flex flex-col flex-1">
+        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+          {fragrance.brand.name}
+        </p>
+        <h3 className="font-display text-lg font-medium leading-tight mb-2 group-hover:text-primary transition-colors">
+          {fragrance.name}
+        </h3>
+        
+        {/* Rating */}
+        <div className="flex items-center gap-1.5 mt-auto">
+          <Star className="h-4 w-4 fill-primary text-primary" />
+          <span className="font-medium">{fragrance.ratings.overall.toFixed(1)}</span>
+          <span className="text-sm text-muted-foreground">
+            ({fragrance.ratings.reviewCount.toLocaleString()})
+          </span>
+        </div>
+
+        {/* Price */}
+        {fragrance.price && (
+          <p className="text-sm text-muted-foreground mt-2">
+            ${fragrance.price.amount} / {fragrance.price.size}
+          </p>
+        )}
+      </div>
+    </Link>
+  );
+}
