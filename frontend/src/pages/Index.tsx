@@ -177,7 +177,7 @@ const Index = () => {
         <div className="container">
           <div className="flex flex-col md:flex-row justify-between items-start gap-8">
             <div>
-              <span className="font-display text-xl font-semibold">Essence</span>
+              <span className="font-display text-xl font-semibold">NoteWorthy</span>
               <p className="text-sm text-muted-foreground mt-2 max-w-xs">
                 The community-driven platform for fragrance discovery and reviews.
               </p>
@@ -208,7 +208,7 @@ const Index = () => {
             </div>
           </div>
           <div className="border-t border-border mt-8 pt-8 text-sm text-muted-foreground text-center">
-            © 2024 Essence. All rights reserved.
+            © 2026 NoteWorthy. All rights reserved.
           </div>
         </div>
       </footer>

@@ -34,7 +34,7 @@ const Login = () => {
         <div className="text-center mb-8">
           <Link to="/" className="inline-block">
             <span className="font-display text-3xl font-semibold tracking-tight text-foreground">
-              Essence
+              NoteWorthy
             </span>
           </Link>
           <p className="text-muted-foreground mt-2 text-sm">

@@ -103,7 +103,7 @@ const Onboarding = () => {
       <header className="w-full border-b border-border/40 bg-background/95 backdrop-blur">
         <div className="container flex items-center justify-between h-14">
           <span className="font-display text-xl font-semibold tracking-tight text-foreground">
-            Essence
+            NoteWorthy
           </span>
           <Button variant="ghost" size="sm" className="text-muted-foreground text-sm" onClick={skip}>
             Skip for now
