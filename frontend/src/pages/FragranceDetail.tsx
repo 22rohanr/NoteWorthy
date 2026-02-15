@@ -18,6 +18,7 @@ export default function FragranceDetail() {
 
   const [isInCollection, setIsInCollection] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   // Sync collection state when userProfile or fragrance load
   // (using derived state from the latest data)
@@ -71,14 +72,17 @@ export default function FragranceDetail() {
     );
   }
 
+  const hasImage = !!fragrance.imageUrl && !imgError;
+  const brandInitial = fragrance.brand.name?.charAt(0)?.toUpperCase() || '?';
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
       {/* Breadcrumb */}
       <div className="container py-4">
-        <Link 
-          to="/discover" 
+        <Link
+          to="/discover"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -101,18 +105,30 @@ export default function FragranceDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Image Section */}
           <div className="relative aspect-square lg:aspect-[3/4] bg-gradient-to-b from-secondary/50 to-secondary rounded-xl overflow-hidden">
-            <div className="absolute inset-0 flex items-center justify-center">
-              {/* Placeholder bottle */}
-              <div className="w-32 h-48 rounded-t-full bg-gradient-to-b from-primary/20 to-primary/40 flex items-end justify-center pb-6">
-                <div className="w-20 h-24 bg-gradient-to-b from-primary/30 to-primary/60 rounded-sm" />
+            {hasImage ? (
+              <div className="absolute inset-0 flex items-center justify-center p-6">
+                <img
+                  src={fragrance.imageUrl}
+                  alt={`${fragrance.name} by ${fragrance.brand.name}`}
+                  className="max-w-[70%] max-h-[70%] object-contain"
+                  onError={() => setImgError(true)}
+                />
               </div>
-            </div>
-            
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary/30 to-primary/60 flex items-center justify-center shadow-lg">
+                  <span className="text-5xl font-display font-semibold text-primary-foreground/90">
+                    {brandInitial}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Actions overlay */}
             <div className="absolute top-4 right-4 flex gap-2">
-              <Button 
-                variant="secondary" 
-                size="icon" 
+              <Button
+                variant="secondary"
+                size="icon"
                 className="h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm"
                 onClick={() => setIsWishlisted(!isWishlisted)}
               >

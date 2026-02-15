@@ -12,6 +12,10 @@ interface FragranceCardProps {
 
 export function FragranceCard({ fragrance, className, style }: FragranceCardProps) {
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  const hasImage = !!fragrance.imageUrl && !imgError;
+  const brandInitial = fragrance.brand.name?.charAt(0)?.toUpperCase() || '?';
 
   return (
     <Link
@@ -24,13 +28,25 @@ export function FragranceCard({ fragrance, className, style }: FragranceCardProp
     >
       {/* Image container */}
       <div className="relative aspect-[3/4] bg-gradient-to-b from-secondary/50 to-secondary overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center">
-          {/* Placeholder bottle silhouette */}
-          <div className="w-20 h-32 rounded-t-full bg-gradient-to-b from-primary/20 to-primary/40 flex items-end justify-center pb-4">
-            <div className="w-12 h-16 bg-gradient-to-b from-primary/30 to-primary/60 rounded-sm" />
+        {hasImage ? (
+          <div className="absolute inset-0 flex items-center justify-center p-8">
+            <img
+              src={fragrance.imageUrl}
+              alt={`${fragrance.name} by ${fragrance.brand.name}`}
+              className="max-w-[50%] max-h-[50%] object-contain transition-transform duration-500 group-hover:scale-105"
+              onError={() => setImgError(true)}
+            />
           </div>
-        </div>
-        
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/30 to-primary/60 flex items-center justify-center shadow-lg">
+              <span className="text-3xl font-display font-semibold text-primary-foreground/90">
+                {brandInitial}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Wishlist button */}
         <button
           onClick={(e) => {
@@ -61,7 +77,7 @@ export function FragranceCard({ fragrance, className, style }: FragranceCardProp
         <h3 className="font-display text-lg font-medium leading-tight mb-2 group-hover:text-primary transition-colors">
           {fragrance.name}
         </h3>
-        
+
         {/* Rating */}
         <div className="flex items-center gap-1.5 mt-auto">
           <Star className="h-4 w-4 fill-primary text-primary" />
