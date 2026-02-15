@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ const genders = ['Unisex', 'Masculine', 'Feminine'] as const;
 
 export default function Discover() {
   const { fragrances, brands, notes, isLoading, isMock } = useFragrances();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -29,6 +31,42 @@ export default function Discover() {
   const [selectedConcentration, setSelectedConcentration] = useState<string>('all');
   const [selectedGender, setSelectedGender] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('rating');
+
+  // Seed filters from URL query params (e.g. ?brand=Chanel&note=Bergamot)
+  useEffect(() => {
+    if (isLoading) return;
+
+    const brandParam = searchParams.get('brand');
+    const noteParam = searchParams.get('note');
+    let filtersApplied = false;
+
+    if (brandParam && brands.length > 0) {
+      const match = brands.find(
+        (b) => b.name.toLowerCase() === brandParam.toLowerCase()
+      );
+      if (match) {
+        setSelectedBrand(match.id);
+        filtersApplied = true;
+      }
+    }
+
+    if (noteParam && notes.length > 0) {
+      const match = notes.find(
+        (n) => n.name.toLowerCase() === noteParam.toLowerCase()
+      );
+      if (match) {
+        setSelectedNotes([match.id]);
+        filtersApplied = true;
+      }
+    }
+
+    if (filtersApplied) {
+      setShowFilters(true);
+      // Clear the query params so refreshing resets, and so that
+      // manually changing filters later doesn't conflict
+      setSearchParams({}, { replace: true });
+    }
+  }, [isLoading, brands, notes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleNote = (noteId: string) => {
     setSelectedNotes((prev) =>
@@ -49,7 +87,7 @@ export default function Discover() {
   const filteredFragrances = fragrances
     .filter((f) => {
       if (searchQuery && !f.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !f.brand.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+        !f.brand.name.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
       }
       if (selectedBrand !== 'all' && f.brand.id !== selectedBrand) return false;
@@ -57,7 +95,7 @@ export default function Discover() {
       if (selectedGender !== 'all' && f.gender !== selectedGender) return false;
       if (selectedNotes.length > 0) {
         const allNotes = [...f.notes.top, ...f.notes.middle, ...f.notes.base];
-        const hasNote = selectedNotes.some((noteId) => 
+        const hasNote = selectedNotes.some((noteId) =>
           allNotes.some((n) => n.id === noteId)
         );
         if (!hasNote) return false;
@@ -81,7 +119,7 @@ export default function Discover() {
       }
     });
 
-  const hasActiveFilters = selectedNotes.length > 0 || selectedBrand !== 'all' || 
+  const hasActiveFilters = selectedNotes.length > 0 || selectedBrand !== 'all' ||
     selectedConcentration !== 'all' || selectedGender !== 'all';
 
   return (
@@ -130,8 +168,8 @@ export default function Discover() {
               Filters
               {hasActiveFilters && (
                 <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
-                  {selectedNotes.length + (selectedBrand !== 'all' ? 1 : 0) + 
-                   (selectedConcentration !== 'all' ? 1 : 0) + (selectedGender !== 'all' ? 1 : 0)}
+                  {selectedNotes.length + (selectedBrand !== 'all' ? 1 : 0) +
+                    (selectedConcentration !== 'all' ? 1 : 0) + (selectedGender !== 'all' ? 1 : 0)}
                 </span>
               )}
             </Button>
@@ -251,8 +289,8 @@ export default function Discover() {
             {/* Fragrance Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {filteredFragrances.map((fragrance, index) => (
-                <FragranceCard 
-                  key={fragrance.id} 
+                <FragranceCard
+                  key={fragrance.id}
                   fragrance={fragrance}
                   className="animate-fade-in"
                   style={{ animationDelay: `${index * 50}ms` } as React.CSSProperties}
