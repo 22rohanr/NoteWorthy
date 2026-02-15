@@ -1,24 +1,73 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 const Signup = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { registerOnBackend, syncProfile } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ username: '', email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulated signup → onboarding
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const credential = await createUserWithEmailAndPassword(
+        auth,
+        form.email,
+        form.password,
+      );
+      const token = await credential.user.getIdToken();
+      await registerOnBackend(token, form.username);
       navigate('/onboarding');
-    }, 1000);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Could not create account';
+      toast({
+        variant: 'destructive',
+        title: 'Signup failed',
+        description: message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setIsLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const token = await result.user.getIdToken();
+
+      // Try logging in first – if no profile exists, auto-register.
+      const profile = await syncProfile(token);
+      if (!profile) {
+        const displayName =
+          result.user.displayName || result.user.email || 'User';
+        await registerOnBackend(token, displayName);
+      }
+
+      navigate('/onboarding');
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Google sign-up failed';
+      toast({
+        variant: 'destructive',
+        title: 'Signup failed',
+        description: message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -49,6 +98,8 @@ const Signup = () => {
             variant="outline"
             className="w-full h-11 mb-6 font-medium text-sm border-border hover:bg-secondary/50"
             type="button"
+            onClick={handleGoogleSignup}
+            disabled={isLoading}
           >
             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />

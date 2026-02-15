@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/layout/Header';
 import { FragranceCard } from '@/components/fragrance/FragranceCard';
 import { NoteBadge } from '@/components/ui/note-badge';
-import { fragrances, notes, brands, concentrations, genders } from '@/data/dummyData';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useFragrances } from '@/hooks/use-api';
 import {
   Select,
   SelectContent,
@@ -13,10 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
+const concentrations = ['EDP', 'EDT', 'Parfum', 'EDC', 'Cologne'] as const;
+const genders = ['Unisex', 'Masculine', 'Feminine'] as const;
+
 export default function Discover() {
+  const { fragrances, brands, notes, isLoading, isMock } = useFragrances();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
@@ -210,28 +215,58 @@ export default function Discover() {
           </div>
         )}
 
-        {/* Results count */}
-        <p className="text-sm text-muted-foreground mb-6">
-          Showing {filteredFragrances.length} fragrance{filteredFragrances.length !== 1 ? 's' : ''}
-        </p>
-
-        {/* Fragrance Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {filteredFragrances.map((fragrance, index) => (
-            <FragranceCard 
-              key={fragrance.id} 
-              fragrance={fragrance}
-              className="animate-fade-in"
-              style={{ animationDelay: `${index * 50}ms` } as React.CSSProperties}
-            />
-          ))}
-        </div>
-
-        {filteredFragrances.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-muted-foreground mb-4">No fragrances match your filters</p>
-            <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
+        {/* Mock data banner */}
+        {isMock && (
+          <div className="mb-6 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            <Info className="h-4 w-4 shrink-0" />
+            Showing sample data — the live API is currently unavailable.
           </div>
+        )}
+
+        {/* Loading state */}
+        {isLoading && (
+          <>
+            <Skeleton className="h-4 w-40 mb-6" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="aspect-[3/4] w-full rounded-xl" />
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Loaded content */}
+        {!isLoading && (
+          <>
+            {/* Results count */}
+            <p className="text-sm text-muted-foreground mb-6">
+              Showing {filteredFragrances.length} fragrance{filteredFragrances.length !== 1 ? 's' : ''}
+            </p>
+
+            {/* Fragrance Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {filteredFragrances.map((fragrance, index) => (
+                <FragranceCard 
+                  key={fragrance.id} 
+                  fragrance={fragrance}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` } as React.CSSProperties}
+                />
+              ))}
+            </div>
+
+            {filteredFragrances.length === 0 && (
+              <div className="text-center py-16">
+                <p className="text-muted-foreground mb-4">No fragrances match your filters</p>
+                <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

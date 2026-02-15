@@ -1,11 +1,28 @@
 import { Link } from 'react-router-dom';
-import { Search, User, Heart, Menu } from 'lucide-react';
+import { Search, User, Heart, Menu, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const { firebaseUser, userProfile, loading, logout } = useAuth();
+
+  const isLoggedIn = !loading && !!firebaseUser;
+  const displayName =
+    userProfile?.username ||
+    firebaseUser?.displayName ||
+    firebaseUser?.email ||
+    'User';
+  const initial = displayName.charAt(0).toUpperCase();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -68,19 +85,62 @@ export function Header() {
             </Link>
           </Button>
 
-          <Button variant="ghost" size="sm" className="hidden md:inline-flex text-sm" asChild>
-            <Link to="/login">Sign In</Link>
-          </Button>
+          {isLoggedIn ? (
+            /* ── Authenticated: avatar dropdown ─────────────── */
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full bg-primary/10 text-primary font-semibold text-sm"
+                >
+                  {initial}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">{displayName}</p>
+                  {firebaseUser?.email && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {firebaseUser.email}
+                    </p>
+                  )}
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/collection" className="cursor-pointer">
+                    <Heart className="mr-2 h-4 w-4" />
+                    My Collection
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={logout}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            /* ── Not authenticated: sign in / create account ── */
+            <>
+              <Button variant="ghost" size="sm" className="hidden md:inline-flex text-sm" asChild>
+                <Link to="/login">Sign In</Link>
+              </Button>
 
-          <Button size="sm" className="hidden md:inline-flex text-sm" asChild>
-            <Link to="/signup">Create Account</Link>
-          </Button>
+              <Button size="sm" className="hidden md:inline-flex text-sm" asChild>
+                <Link to="/signup">Create Account</Link>
+              </Button>
 
-          <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden" asChild>
-            <Link to="/login">
-              <User className="h-4 w-4" />
-            </Link>
-          </Button>
+              <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden" asChild>
+                <Link to="/login">
+                  <User className="h-4 w-4" />
+                </Link>
+              </Button>
+            </>
+          )}
 
           {/* Mobile menu */}
           <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden">
