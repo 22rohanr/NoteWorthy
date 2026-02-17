@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Star, Heart, Share2, Plus, Check, Info } from 'lucide-react';
+import { ArrowLeft, Star, Heart, Share2, Plus, Check, Info, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/layout/Header';
@@ -8,25 +8,44 @@ import { RatingBar } from '@/components/ui/rating-bar';
 import { NotePyramid } from '@/components/fragrance/NotePyramid';
 import { ReviewCard } from '@/components/fragrance/ReviewCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useFragrance } from '@/hooks/use-api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCollection, type CollectionTab } from '@/hooks/use-collection';
+
+const COLLECTION_TABS: { tab: CollectionTab; label: string }[] = [
+  { tab: 'owned', label: 'Owned' },
+  { tab: 'sampled', label: 'Sampled' },
+  { tab: 'wishlist', label: 'Wishlist' },
+];
 
 export default function FragranceDetail() {
   const { id } = useParams<{ id: string }>();
   const { fragrance, reviews: fragranceReviews, isLoading, isMock } = useFragrance(id);
   const { userProfile } = useAuth();
+  const { getTabsForFragrance, addToCollection, removeFromCollection, isMutating } =
+    useCollection();
 
-  const [isInCollection, setIsInCollection] = useState(false);
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  // Sync collection state when userProfile or fragrance load
-  // (using derived state from the latest data)
-  const owned = userProfile?.collection?.owned ?? [];
-  const tried = userProfile?.collection?.tried ?? [];
-  const wishlist = userProfile?.collection?.wishlist ?? [];
-  const inCollection = isInCollection || owned.includes(id || '') || tried.includes(id || '');
-  const wishlisted = isWishlisted || wishlist.includes(id || '');
+  // Derive collection state from the profile
+  const activeTabs = id ? getTabsForFragrance(id) : [];
+  const inAnyCollection = activeTabs.length > 0;
+  const isWishlisted = activeTabs.includes('wishlist');
+
+  const handleToggleTab = async (tab: CollectionTab) => {
+    if (!id) return;
+    if (activeTabs.includes(tab)) {
+      await removeFromCollection(id, tab);
+    } else {
+      await addToCollection(id, tab);
+    }
+  };
 
   /* ── Loading state ───────────────────────────────────────────────── */
   if (isLoading) {
@@ -130,9 +149,10 @@ export default function FragranceDetail() {
                 variant="secondary"
                 size="icon"
                 className="h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm"
-                onClick={() => setIsWishlisted(!isWishlisted)}
+                disabled={!userProfile || isMutating}
+                onClick={() => handleToggleTab('wishlist')}
               >
-                <Heart className={wishlisted ? "h-5 w-5 fill-primary text-primary" : "h-5 w-5"} />
+                <Heart className={isWishlisted ? "h-5 w-5 fill-primary text-primary" : "h-5 w-5"} />
               </Button>
               <Button variant="secondary" size="icon" className="h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm">
                 <Share2 className="h-5 w-5" />
@@ -189,23 +209,56 @@ export default function FragranceDetail() {
                 </div>
               )}
               <div className="flex gap-3 ml-auto">
-                <Button
-                  variant={inCollection ? "secondary" : "default"}
-                  className="gap-2"
-                  onClick={() => setIsInCollection(!isInCollection)}
-                >
-                  {inCollection ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      In Collection
-                    </>
-                  ) : (
-                    <>
+                {userProfile ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant={inAnyCollection ? 'secondary' : 'default'}
+                        className="gap-2"
+                        disabled={isMutating}
+                      >
+                        {inAnyCollection ? (
+                          <>
+                            <Check className="h-4 w-4" />
+                            In Collection
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4" />
+                            Add to Collection
+                          </>
+                        )}
+                        <ChevronDown className="h-3 w-3 opacity-60" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {COLLECTION_TABS.map(({ tab, label }) => {
+                        const isActive = activeTabs.includes(tab);
+                        return (
+                          <DropdownMenuItem
+                            key={tab}
+                            onClick={() => handleToggleTab(tab)}
+                            className="gap-2"
+                          >
+                            {isActive ? (
+                              <Check className="h-4 w-4 text-primary" />
+                            ) : (
+                              <Plus className="h-4 w-4 opacity-40" />
+                            )}
+                            {label}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button variant="default" className="gap-2" asChild>
+                    <Link to="/login">
                       <Plus className="h-4 w-4" />
-                      Add to Collection
-                    </>
-                  )}
-                </Button>
+                      Sign in to Collect
+                    </Link>
+                  </Button>
+                )}
               </div>
             </div>
 

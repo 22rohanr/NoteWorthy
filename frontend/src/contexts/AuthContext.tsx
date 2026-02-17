@@ -32,8 +32,8 @@ export interface UserProfile {
   };
   collection: {
     owned: string[];
+    sampled: string[];
     wishlist: string[];
-    tried: string[];
   };
   joinDate: string;
 }
@@ -53,6 +53,8 @@ export interface AuthContextValue {
   registerOnBackend: (idToken: string, username: string) => Promise<UserProfile>;
   /** Manually sync the profile from the backend (e.g. after login). */
   syncProfile: (idToken: string) => Promise<UserProfile | null>;
+  /** Re-fetch the user profile using the current token (e.g. after collection changes). */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -102,6 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIdToken(null);
   }, []);
 
+  const refreshProfile = useCallback(async () => {
+    if (idToken) {
+      await syncProfile(idToken);
+    }
+  }, [idToken, syncProfile]);
+
   /* ── Firebase listener ───────────────────────────────────────────── */
 
   useEffect(() => {
@@ -140,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         registerOnBackend,
         syncProfile,
+        refreshProfile,
       }}
     >
       {children}

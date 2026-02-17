@@ -3,6 +3,8 @@ import { Star, Heart } from 'lucide-react';
 import { Fragrance } from '@/types/fragrance';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCollection } from '@/hooks/use-collection';
 
 interface FragranceCardProps {
   fragrance: Fragrance;
@@ -11,11 +13,28 @@ interface FragranceCardProps {
 }
 
 export function FragranceCard({ fragrance, className, style }: FragranceCardProps) {
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const { userProfile } = useAuth();
+  const { addToCollection, removeFromCollection, getTabsForFragrance, isMutating } =
+    useCollection();
+
+  const isWishlisted = userProfile
+    ? getTabsForFragrance(fragrance.id).includes('wishlist')
+    : false;
 
   const hasImage = !!fragrance.imageUrl && !imgError;
   const brandInitial = fragrance.brand.name?.charAt(0)?.toUpperCase() || '?';
+
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!userProfile || isMutating) return;
+    if (isWishlisted) {
+      await removeFromCollection(fragrance.id, 'wishlist');
+    } else {
+      await addToCollection(fragrance.id, 'wishlist');
+    }
+  };
 
   return (
     <Link
@@ -49,10 +68,7 @@ export function FragranceCard({ fragrance, className, style }: FragranceCardProp
 
         {/* Wishlist button */}
         <button
-          onClick={(e) => {
-            e.preventDefault();
-            setIsWishlisted(!isWishlisted);
-          }}
+          onClick={handleWishlistToggle}
           className="absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
         >
           <Heart

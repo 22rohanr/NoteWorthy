@@ -1,27 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, Grid3X3, List } from 'lucide-react';
+import { Star, Grid3X3, List, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/layout/Header';
 import { FragranceCard } from '@/components/fragrance/FragranceCard';
-import { fragrances, currentUser } from '@/data/dummyData';
-import { CollectionTab } from '@/types/fragrance';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCollection, type CollectionTab } from '@/hooks/use-collection';
+import type { Fragrance } from '@/types/fragrance';
 
 export default function Collection() {
   const [activeTab, setActiveTab] = useState<CollectionTab>('owned');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const { userProfile } = useAuth();
+  const { resolvedCollection, isLoadingCollection, fetchCollection, collectionIds } =
+    useCollection();
 
-  const getFragrancesByCollection = (collection: CollectionTab) => {
-    const ids = currentUser.collection[collection];
-    return fragrances.filter((f) => ids.includes(f.id));
-  };
+  // Fetch resolved fragrances on mount & when profile changes
+  useEffect(() => {
+    if (userProfile) {
+      fetchCollection();
+    }
+  }, [userProfile, fetchCollection]);
 
-  const ownedFragrances = getFragrancesByCollection('owned');
-  const sampledFragrances = getFragrancesByCollection('sampled');
-  const wishlistFragrances = getFragrancesByCollection('wishlist');
+  const ownedFragrances = resolvedCollection?.owned ?? [];
+  const sampledFragrances = resolvedCollection?.sampled ?? [];
+  const wishlistFragrances = resolvedCollection?.wishlist ?? [];
 
-  const renderFragranceList = (items: typeof fragrances) => {
+  const renderFragranceList = (items: Fragrance[]) => {
     if (items.length === 0) {
       return (
         <div className="text-center py-16">
@@ -77,6 +84,45 @@ export default function Collection() {
     );
   };
 
+  // Not logged in
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container py-16 text-center">
+          <h1 className="font-display text-3xl md:text-4xl font-medium mb-4">My Collection</h1>
+          <p className="text-muted-foreground mb-6">
+            Sign in to start building your fragrance collection.
+          </p>
+          <Button asChild>
+            <Link to="/login" className="gap-2">
+              <LogIn className="h-4 w-4" />
+              Sign In
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading
+  if (isLoadingCollection && !resolvedCollection) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container py-8">
+          <Skeleton className="h-10 w-48 mb-2" />
+          <Skeleton className="h-5 w-64 mb-8" />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-[3/4] rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -87,7 +133,7 @@ export default function Collection() {
           <div>
             <h1 className="font-display text-3xl md:text-4xl font-medium mb-2">My Collection</h1>
             <p className="text-muted-foreground">
-              {ownedFragrances.length} owned • {sampledFragrances.length} sampled • {wishlistFragrances.length} wishlisted
+              {collectionIds.owned.length} owned • {collectionIds.sampled.length} sampled • {collectionIds.wishlist.length} wishlisted
             </p>
           </div>
           <div className="flex gap-1 bg-secondary rounded-lg p-1">
@@ -115,15 +161,15 @@ export default function Collection() {
           <TabsList className="mb-6">
             <TabsTrigger value="owned" className="gap-2">
               Owned
-              <span className="px-1.5 py-0.5 text-xs bg-secondary rounded">{ownedFragrances.length}</span>
+              <span className="px-1.5 py-0.5 text-xs bg-secondary rounded">{collectionIds.owned.length}</span>
             </TabsTrigger>
             <TabsTrigger value="sampled" className="gap-2">
               Sampled
-              <span className="px-1.5 py-0.5 text-xs bg-secondary rounded">{sampledFragrances.length}</span>
+              <span className="px-1.5 py-0.5 text-xs bg-secondary rounded">{collectionIds.sampled.length}</span>
             </TabsTrigger>
             <TabsTrigger value="wishlist" className="gap-2">
               Wishlist
-              <span className="px-1.5 py-0.5 text-xs bg-secondary rounded">{wishlistFragrances.length}</span>
+              <span className="px-1.5 py-0.5 text-xs bg-secondary rounded">{collectionIds.wishlist.length}</span>
             </TabsTrigger>
           </TabsList>
 
