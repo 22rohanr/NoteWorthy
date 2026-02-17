@@ -15,6 +15,8 @@ import Onboarding from "./pages/Onboarding";
 import Brands from "./pages/Brands";
 import Notes from "./pages/Notes";
 import Reviews from "./pages/Reviews";
+import WriteReview from "./pages/WriteReview";
+import MyReviews from "./pages/MyReviews";
 import Discussions from "./pages/Discussions";
 import NotFound from "./pages/NotFound";
 
@@ -38,6 +40,8 @@ const App = () => (
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/brands" element={<Brands />} />
             <Route path="/notes" element={<Notes />} />
+            <Route path="/reviews/write" element={<WriteReview />} />
+            <Route path="/reviews/mine" element={<MyReviews />} />
             <Route path="/reviews" element={<Reviews />} />
             <Route path="/discussions" element={<Discussions />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

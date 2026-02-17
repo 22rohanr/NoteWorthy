@@ -28,7 +28,7 @@ const Index = () => {
               <span className="italic">actually</span> love
             </h1>
             <p className="text-lg text-white/70 max-w-lg">
-              Explore thousands of fragrances with honest reviews, detailed note breakdowns, 
+              Explore thousands of fragrances with honest reviews, detailed note breakdowns,
               and performance data from real enthusiasts.
             </p>
             <div className="flex flex-wrap gap-4 pt-4">
@@ -38,9 +38,9 @@ const Index = () => {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
+              <Button
+                size="lg"
+                variant="outline"
                 className="border-white/30 bg-transparent text-white hover:bg-white/10"
                 asChild
               >
@@ -109,9 +109,9 @@ const Index = () => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {featuredFragrances.map((fragrance, index) => (
-              <FragranceCard 
-                key={fragrance.id} 
-                fragrance={fragrance} 
+              <FragranceCard
+                key={fragrance.id}
+                fragrance={fragrance}
                 className="animate-fade-in"
                 style={{ animationDelay: `${index * 100}ms` } as React.CSSProperties}
               />
@@ -136,8 +136,8 @@ const Index = () => {
           </div>
           <div className="flex flex-wrap justify-center gap-3 max-w-2xl mx-auto">
             {popularNotes.map((note) => (
-              <Link 
-                key={note.id} 
+              <Link
+                key={note.id}
                 to={`/discover?note=${note.name}`}
                 className="transition-transform hover:scale-105"
               >
@@ -158,7 +158,7 @@ const Index = () => {
                 Start your fragrance journey
               </h2>
               <p className="text-muted-foreground mb-6">
-                Create a free account to log your collection, write reviews, 
+                Create a free account to log your collection, write reviews,
                 and get personalized recommendations.
               </p>
               <Button size="lg" asChild>
@@ -195,7 +195,7 @@ const Index = () => {
                 <p className="font-medium mb-3">Community</p>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><Link to="/reviews" className="hover:text-foreground transition-colors">Reviews</Link></li>
-                  <li><Link to="/community" className="hover:text-foreground transition-colors">Discussions</Link></li>
+                  <li><Link to="/discussions" className="hover:text-foreground transition-colors">Discussions</Link></li>
                 </ul>
               </div>
               <div>

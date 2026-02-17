@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ThumbsUp, Star } from 'lucide-react';
 import { Review } from '@/types/fragrance';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -6,9 +7,25 @@ import { RatingBar } from '@/components/ui/rating-bar';
 
 interface ReviewCardProps {
   review: Review;
+  onUpvote?: (reviewId: string) => Promise<void>;
 }
 
-export function ReviewCard({ review }: ReviewCardProps) {
+export function ReviewCard({ review, onUpvote }: ReviewCardProps) {
+  const [upvoted, setUpvoted] = useState(false);
+  const [displayCount, setDisplayCount] = useState(review.upvotes);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleUpvote = async () => {
+    if (upvoted || isLoading || !onUpvote) return;
+    setIsLoading(true);
+    try {
+      await onUpvote(review.id);
+      setUpvoted(true);
+      setDisplayCount((c) => c + 1);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <div className="p-5 bg-card rounded-lg border border-border/50 space-y-4">
       {/* Header */}
@@ -73,9 +90,15 @@ export function ReviewCard({ review }: ReviewCardProps) {
             <span>{review.wearContext.occasion}</span>
           </div>
         )}
-        <Button variant="ghost" size="sm" className="gap-2 ml-auto">
-          <ThumbsUp className="h-4 w-4" />
-          <span>{review.upvotes}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`gap-2 ml-auto ${upvoted ? 'text-primary' : ''}`}
+          onClick={handleUpvote}
+          disabled={upvoted || isLoading || !onUpvote}
+        >
+          <ThumbsUp className={`h-4 w-4 ${upvoted ? 'fill-primary' : ''}`} />
+          <span>{displayCount} upvotes</span>
         </Button>
       </div>
     </div>

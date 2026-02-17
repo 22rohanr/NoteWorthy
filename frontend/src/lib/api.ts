@@ -46,3 +46,23 @@ export async function apiGet<T = unknown>(
 
   return data as T;
 }
+
+export async function apiDelete<T = unknown>(
+  path: string,
+  token?: string,
+): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_URL}${path}`, { method: "DELETE", headers });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || `Request failed with status ${res.status}`);
+  }
+
+  return data as T;
+}

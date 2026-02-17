@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Info } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/layout/Header';
@@ -31,6 +31,19 @@ export default function Discover() {
   const [selectedConcentration, setSelectedConcentration] = useState<string>('all');
   const [selectedGender, setSelectedGender] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('rating');
+  const [notesExpanded, setNotesExpanded] = useState(false);
+
+  const COLLAPSED_NOTE_LIMIT = 8;
+
+  // Sort notes so selected ones appear first, then limit when collapsed
+  const visibleNotes = useMemo(() => {
+    if (notesExpanded) return notes;
+
+    const selected = notes.filter((n) => selectedNotes.includes(n.id));
+    const unselected = notes.filter((n) => !selectedNotes.includes(n.id));
+    const slotsLeft = Math.max(0, COLLAPSED_NOTE_LIMIT - selected.length);
+    return [...selected, ...unselected.slice(0, slotsLeft)];
+  }, [notes, selectedNotes, notesExpanded]);
 
   // Seed filters from URL query params (e.g. ?brand=Chanel&note=Bergamot)
   useEffect(() => {
@@ -237,9 +250,16 @@ export default function Discover() {
 
             {/* Notes filter */}
             <div className="space-y-3">
-              <Label>Notes</Label>
+              <div className="flex items-center justify-between">
+                <Label>Notes</Label>
+                {selectedNotes.length > 0 && !notesExpanded && (
+                  <span className="text-xs text-muted-foreground">
+                    {selectedNotes.length} selected
+                  </span>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2">
-                {notes.map((note) => (
+                {visibleNotes.map((note) => (
                   <button
                     key={note.id}
                     onClick={() => toggleNote(note.id)}
@@ -249,6 +269,26 @@ export default function Discover() {
                   </button>
                 ))}
               </div>
+              {notes.length > COLLAPSED_NOTE_LIMIT && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setNotesExpanded(!notesExpanded)}
+                  className="gap-1 text-muted-foreground"
+                >
+                  {notesExpanded ? (
+                    <>
+                      Show less
+                      <ChevronUp className="h-3 w-3" />
+                    </>
+                  ) : (
+                    <>
+                      Show all {notes.length} notes
+                      <ChevronDown className="h-3 w-3" />
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         )}

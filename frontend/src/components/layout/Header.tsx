@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Search, User, Heart, Menu, LogOut } from 'lucide-react';
+import { Search, User, Heart, Menu, LogOut, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -68,9 +68,9 @@ export function Header() {
                 />
               </div>
             ) : (
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-9 w-9"
                 onClick={() => setIsSearchOpen(true)}
               >
@@ -111,6 +111,12 @@ export function Header() {
                   <Link to="/collection" className="cursor-pointer">
                     <Heart className="mr-2 h-4 w-4" />
                     My Collection
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/reviews/mine" className="cursor-pointer">
+                    <PenLine className="mr-2 h-4 w-4" />
+                    My Reviews
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

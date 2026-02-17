@@ -98,9 +98,6 @@ export function FragranceCard({ fragrance, className, style }: FragranceCardProp
         <div className="flex items-center gap-1.5 mt-auto">
           <Star className="h-4 w-4 fill-primary text-primary" />
           <span className="font-medium">{fragrance.ratings.overall.toFixed(1)}</span>
-          <span className="text-sm text-muted-foreground">
-            ({fragrance.ratings.reviewCount.toLocaleString()})
-          </span>
         </div>
 
         {/* Price */}

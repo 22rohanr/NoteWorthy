@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Star, Heart, Share2, Plus, Check, Info, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Star, Heart, Share2, Plus, Check, Info, ChevronDown, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/layout/Header';
@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useFragrance } from '@/hooks/use-api';
+import { useUpvoteReview } from '@/hooks/use-reviews';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCollection, type CollectionTab } from '@/hooks/use-collection';
 
@@ -28,6 +29,7 @@ export default function FragranceDetail() {
   const { id } = useParams<{ id: string }>();
   const { fragrance, reviews: fragranceReviews, isLoading, isMock } = useFragrance(id);
   const { userProfile } = useAuth();
+  const { upvote } = useUpvoteReview();
   const { getTabsForFragrance, addToCollection, removeFromCollection, isMutating } =
     useCollection();
 
@@ -185,9 +187,6 @@ export default function FragranceDetail() {
                 <Star className="h-6 w-6 fill-primary text-primary" />
                 <span className="text-2xl font-medium">{fragrance.ratings.overall.toFixed(1)}</span>
               </div>
-              <div className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{fragrance.ratings.reviewCount.toLocaleString()}</span> reviews
-              </div>
             </div>
 
             {/* Description */}
@@ -287,14 +286,21 @@ export default function FragranceDetail() {
               <TabsTrigger value="similar">Similar Fragrances</TabsTrigger>
             </TabsList>
             <TabsContent value="reviews" className="space-y-4">
+              <div className="flex justify-end mb-2">
+                <Button variant="outline" className="gap-2" asChild>
+                  <Link to={`/reviews/write?fragrance=${id}`}>
+                    <PenLine className="h-4 w-4" />
+                    Write a Review
+                  </Link>
+                </Button>
+              </div>
               {fragranceReviews.length > 0 ? (
                 fragranceReviews.map((review) => (
-                  <ReviewCard key={review.id} review={review} />
+                  <ReviewCard key={review.id} review={review} onUpvote={upvote} />
                 ))
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <p>No reviews yet. Be the first to share your thoughts!</p>
-                  <Button className="mt-4">Write a Review</Button>
                 </div>
               )}
             </TabsContent>
