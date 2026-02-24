@@ -1,5 +1,7 @@
 import "@testing-library/jest-dom";
 
+Element.prototype.scrollIntoView = () => {};
+
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: (query: string) => ({
