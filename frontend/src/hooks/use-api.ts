@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { apiGet } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiGet, apiPost } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Fragrance, Brand, Note, Review } from "@/types/fragrance";
+import type { Discussion, Reply } from "@/data/discussionData";
 import {
   fragrances as mockFragrances,
   brands as mockBrands,
@@ -167,4 +168,92 @@ export function useFragrance(id: string | undefined) {
       reviewsQuery.refetch();
     },
   };
+}
+
+/* ------------------------------------------------------------------ */
+/*  useDiscussions – Discussions list page                              */
+/* ------------------------------------------------------------------ */
+
+interface DiscussionsResponse {
+  discussions: Discussion[];
+}
+
+export function useDiscussions() {
+  const query = useQuery({
+    queryKey: ["discussions"],
+    queryFn: () => apiGet<DiscussionsResponse>("/discussions"),
+    staleTime: 60 * 1000,
+  });
+
+  return {
+    discussions: query.data?.discussions ?? [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  useDiscussion – Single discussion detail with replies               */
+/* ------------------------------------------------------------------ */
+
+interface DiscussionDetailResponse {
+  discussion: Discussion;
+  replies: Reply[];
+}
+
+export function useDiscussion(id: string | undefined) {
+  const query = useQuery({
+    queryKey: ["discussion", id],
+    queryFn: () => apiGet<DiscussionDetailResponse>(`/discussions/${id}`),
+    enabled: !!id,
+    staleTime: 30 * 1000,
+  });
+
+  return {
+    discussion: query.data?.discussion ?? null,
+    replies: query.data?.replies ?? [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  useCreateDiscussion                                                 */
+/* ------------------------------------------------------------------ */
+
+export function useCreateDiscussion() {
+  const { idToken } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { title: string; body: string; category: string }) =>
+      apiPost<{ discussion: Discussion }>("/discussions", data, idToken ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["discussions"] });
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  useAddReply                                                         */
+/* ------------------------------------------------------------------ */
+
+export function useAddReply(discussionId: string) {
+  const { idToken } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { body: string }) =>
+      apiPost<{ reply: Reply }>(
+        `/discussions/${discussionId}/replies`,
+        data,
+        idToken ?? undefined,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["discussion", discussionId] });
+      queryClient.invalidateQueries({ queryKey: ["discussions"] });
+    },
+  });
 }

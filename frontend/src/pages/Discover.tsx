@@ -113,6 +113,7 @@ export default function Discover() {
         );
         if (!hasNote) return false;
       }
+      if ((sortBy === 'price-low' || sortBy === 'price-high') && !f.price) return false;
       return true;
     })
     .sort((a, b) => {
@@ -122,9 +123,9 @@ export default function Discover() {
         case 'reviews':
           return b.ratings.reviewCount - a.ratings.reviewCount;
         case 'price-low':
-          return (a.price?.amount || 0) - (b.price?.amount || 0);
+          return a.price!.amount - b.price!.amount;
         case 'price-high':
-          return (b.price?.amount || 0) - (a.price?.amount || 0);
+          return b.price!.amount - a.price!.amount;
         case 'newest':
           return b.releaseYear - a.releaseYear;
         default:

@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { FragranceCard } from '@/components/fragrance/FragranceCard';
 import { NoteBadge } from '@/components/ui/note-badge';
-import { fragrances, notes } from '@/data/dummyData';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useFragrances } from '@/hooks/use-api';
 
 const Index = () => {
+  const { fragrances, notes, isLoading } = useFragrances();
   const featuredFragrances = fragrances.slice(0, 4);
   const popularNotes = notes.slice(0, 8);
 
@@ -108,14 +110,23 @@ const Index = () => {
             </Button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {featuredFragrances.map((fragrance, index) => (
-              <FragranceCard
-                key={fragrance.id}
-                fragrance={fragrance}
-                className="animate-fade-in"
-                style={{ animationDelay: `${index * 100}ms` } as React.CSSProperties}
-              />
-            ))}
+            {isLoading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-3">
+                    <Skeleton className="aspect-[3/4] w-full rounded-xl" />
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                ))
+              : featuredFragrances.map((fragrance, index) => (
+                  <FragranceCard
+                    key={fragrance.id}
+                    fragrance={fragrance}
+                    className="animate-fade-in"
+                    style={{ animationDelay: `${index * 100}ms` } as React.CSSProperties}
+                  />
+                ))}
           </div>
           <div className="mt-6 text-center sm:hidden">
             <Button variant="outline" asChild>

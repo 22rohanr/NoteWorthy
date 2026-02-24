@@ -51,9 +51,11 @@ def _register_blueprints(app: Flask) -> None:
     from routes.reviews import reviews_bp
     from routes.discovery import discovery_bp
     from routes.collection import collection_bp
+    from routes.discussions import discussions_bp
 
-    app.register_blueprint(auth_bp,        url_prefix="/api/auth")
-    app.register_blueprint(fragrances_bp,  url_prefix="/api/fragrances")
-    app.register_blueprint(reviews_bp,     url_prefix="/api/reviews")
-    app.register_blueprint(discovery_bp,   url_prefix="/api/discovery")
-    app.register_blueprint(collection_bp,  url_prefix="/api/collection")
+    app.register_blueprint(auth_bp,          url_prefix="/api/auth")
+    app.register_blueprint(fragrances_bp,    url_prefix="/api/fragrances")
+    app.register_blueprint(reviews_bp,       url_prefix="/api/reviews")
+    app.register_blueprint(discovery_bp,     url_prefix="/api/discovery")
+    app.register_blueprint(collection_bp,    url_prefix="/api/collection")
+    app.register_blueprint(discussions_bp,   url_prefix="/api/discussions")

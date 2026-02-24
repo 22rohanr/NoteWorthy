@@ -1,17 +1,27 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Sparkles, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Header } from '@/components/layout/Header';
-import { NoteBadge } from '@/components/ui/note-badge';
 import { FragranceCard } from '@/components/fragrance/FragranceCard';
-import { notes, fragrances, genders } from '@/data/dummyData';
+import { Skeleton } from "@/components/ui/skeleton";
+import { useFragrances } from '@/hooks/use-api';
 import { cn } from '@/lib/utils';
 
+const FAMILY_META: Record<string, { desc: string }> = {
+  Citrus:   { desc: 'Lemon, bergamot, orange' },
+  Floral:   { desc: 'Rose, jasmine, lily' },
+  Woody:    { desc: 'Sandalwood, cedar, vetiver' },
+  Oriental: { desc: 'Amber, vanilla, incense' },
+  Fresh:    { desc: 'Aquatic, green, ozonic' },
+  Gourmand: { desc: 'Chocolate, caramel, coffee' },
+  Spicy:    { desc: 'Pepper, cinnamon, cardamom' },
+};
+
 interface QuizState {
-  likedNotes: string[];
-  avoidedNotes: string[];
+  likedFamilies: string[];
+  avoidedFamilies: string[];
   budget: 'any' | 'under150' | '150to300' | 'over300';
   performance: 'longevity' | 'sillage' | 'value' | 'balanced';
   occasion: 'daily' | 'office' | 'evening' | 'special';
@@ -22,30 +32,45 @@ const TOTAL_STEPS = 6;
 
 export default function ScentQuiz() {
   const navigate = useNavigate();
+  const { fragrances, notes, isLoading } = useFragrances();
   const [step, setStep] = useState(1);
   const [showResults, setShowResults] = useState(false);
   const [quizState, setQuizState] = useState<QuizState>({
-    likedNotes: [],
-    avoidedNotes: [],
+    likedFamilies: [],
+    avoidedFamilies: [],
     budget: 'any',
     performance: 'balanced',
     occasion: 'daily',
     gender: 'any',
   });
 
+  const families = useMemo(
+    () => [...new Set(notes.map((n) => n.family).filter(Boolean))] as string[],
+    [notes],
+  );
+
+  const noteIdsByFamily = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    for (const n of notes) {
+      if (n.family) {
+        (map[n.family] ??= new Set()).add(n.id);
+      }
+    }
+    return map;
+  }, [notes]);
+
   const progress = (step / TOTAL_STEPS) * 100;
 
-  const toggleNote = (noteId: string, type: 'liked' | 'avoided') => {
-    const key = type === 'liked' ? 'likedNotes' : 'avoidedNotes';
-    const otherKey = type === 'liked' ? 'avoidedNotes' : 'likedNotes';
-    
+  const toggleFamily = (family: string, type: 'liked' | 'avoided') => {
+    const key = type === 'liked' ? 'likedFamilies' : 'avoidedFamilies';
+    const otherKey = type === 'liked' ? 'avoidedFamilies' : 'likedFamilies';
+
     setQuizState((prev) => ({
       ...prev,
-      [key]: prev[key].includes(noteId)
-        ? prev[key].filter((id) => id !== noteId)
-        : [...prev[key], noteId],
-      // Remove from other list if present
-      [otherKey]: prev[otherKey].filter((id) => id !== noteId),
+      [key]: prev[key].includes(family)
+        ? prev[key].filter((f) => f !== family)
+        : [...prev[key], family],
+      [otherKey]: prev[otherKey].filter((f) => f !== family),
     }));
   };
 
@@ -67,26 +92,31 @@ export default function ScentQuiz() {
     }
   };
 
-  // Calculate recommendations based on quiz answers
   const getRecommendations = () => {
     return fragrances
       .map((fragrance) => {
         let score = 0;
-        const allNotes = [...fragrance.notes.top, ...fragrance.notes.middle, ...fragrance.notes.base];
-        
-        // Score based on liked notes (higher weight)
-        quizState.likedNotes.forEach((noteId) => {
-          if (allNotes.some((n) => n.id === noteId)) {
+        const allNoteIds = [
+          ...fragrance.notes.top,
+          ...fragrance.notes.middle,
+          ...fragrance.notes.base,
+        ].map((n) => n.id);
+
+        // Score based on liked families
+        for (const family of quizState.likedFamilies) {
+          const ids = noteIdsByFamily[family];
+          if (ids && allNoteIds.some((id) => ids.has(id))) {
             score += 20;
           }
-        });
+        }
 
-        // Penalize avoided notes
-        quizState.avoidedNotes.forEach((noteId) => {
-          if (allNotes.some((n) => n.id === noteId)) {
+        // Penalize avoided families
+        for (const family of quizState.avoidedFamilies) {
+          const ids = noteIdsByFamily[family];
+          if (ids && allNoteIds.some((id) => ids.has(id))) {
             score -= 30;
           }
-        });
+        }
 
         // Budget filter
         if (quizState.budget !== 'any' && fragrance.price) {
@@ -149,9 +179,9 @@ export default function ScentQuiz() {
               We found {recommendations.length} perfect matches
             </h1>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              Based on your preferences for {quizState.likedNotes.length > 0 
-                ? notes.filter(n => quizState.likedNotes.includes(n.id)).map(n => n.name).join(', ')
-                : 'various notes'
+              Based on your preferences for {quizState.likedFamilies.length > 0
+                ? quizState.likedFamilies.join(', ').toLowerCase() + ' notes'
+                : 'various scent profiles'
               }
             </p>
           </div>
@@ -227,7 +257,7 @@ export default function ScentQuiz() {
       {/* Quiz Content */}
       <div className="flex-1 container py-8 md:py-12 max-w-2xl">
         <div className="animate-fade-in" key={step}>
-          {/* Step 1: Liked Notes */}
+          {/* Step 1: Liked Families */}
           {step === 1 && (
             <div className="space-y-6">
               <div className="text-center">
@@ -235,62 +265,82 @@ export default function ScentQuiz() {
                   What scents do you love?
                 </h2>
                 <p className="text-muted-foreground">
-                  Select notes that appeal to you. Pick as many as you like.
+                  Pick the scent families that appeal to you.
                 </p>
               </div>
-              <div className="flex flex-wrap justify-center gap-3 py-4">
-                {notes.map((note) => (
-                  <button
-                    key={note.id}
-                    onClick={() => toggleNote(note.id, 'liked')}
-                    className={cn(
-                      "relative transition-all",
-                      quizState.likedNotes.includes(note.id) && "ring-2 ring-primary ring-offset-2"
-                    )}
-                  >
-                    <NoteBadge note={note} />
-                    {quizState.likedNotes.includes(note.id) && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                        <Check className="h-3 w-3 text-primary-foreground" />
-                      </span>
-                    )}
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 gap-3 py-4 max-w-md mx-auto">
+                {isLoading
+                  ? Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="h-20 rounded-lg" />
+                    ))
+                  : families.map((family) => {
+                      const meta = FAMILY_META[family];
+                      return (
+                        <button
+                          key={family}
+                          onClick={() => toggleFamily(family, 'liked')}
+                          className={cn(
+                            "relative p-4 rounded-lg border-2 text-left transition-all",
+                            quizState.likedFamilies.includes(family)
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-primary/50"
+                          )}
+                        >
+                          <p className="font-medium">{family}</p>
+                          <p className="text-sm text-muted-foreground">{meta?.desc}</p>
+                          {quizState.likedFamilies.includes(family) && (
+                            <span className="absolute top-2 right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                              <Check className="h-3 w-3 text-primary-foreground" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
               </div>
             </div>
           )}
 
-          {/* Step 2: Avoided Notes */}
+          {/* Step 2: Avoided Families */}
           {step === 2 && (
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="font-display text-2xl md:text-3xl font-medium mb-2">
-                  Any notes to avoid?
+                  Any scent families to avoid?
                 </h2>
                 <p className="text-muted-foreground">
-                  Select notes you'd prefer to stay away from.
+                  Select families you'd prefer to stay away from.
                 </p>
               </div>
-              <div className="flex flex-wrap justify-center gap-3 py-4">
-                {notes
-                  .filter((note) => !quizState.likedNotes.includes(note.id))
-                  .map((note) => (
-                    <button
-                      key={note.id}
-                      onClick={() => toggleNote(note.id, 'avoided')}
-                      className={cn(
-                        "relative transition-all",
-                        quizState.avoidedNotes.includes(note.id) && "ring-2 ring-destructive ring-offset-2"
-                      )}
-                    >
-                      <NoteBadge note={note} />
-                      {quizState.avoidedNotes.includes(note.id) && (
-                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full flex items-center justify-center">
-                          <Check className="h-3 w-3 text-destructive-foreground" />
-                        </span>
-                      )}
-                    </button>
-                  ))}
+              <div className="grid grid-cols-2 gap-3 py-4 max-w-md mx-auto">
+                {isLoading
+                  ? Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="h-20 rounded-lg" />
+                    ))
+                  : families
+                      .filter((f) => !quizState.likedFamilies.includes(f))
+                      .map((family) => {
+                        const meta = FAMILY_META[family];
+                        return (
+                          <button
+                            key={family}
+                            onClick={() => toggleFamily(family, 'avoided')}
+                            className={cn(
+                              "relative p-4 rounded-lg border-2 text-left transition-all",
+                              quizState.avoidedFamilies.includes(family)
+                                ? "border-destructive bg-destructive/5"
+                                : "border-border hover:border-destructive/50"
+                            )}
+                          >
+                            <p className="font-medium">{family}</p>
+                            <p className="text-sm text-muted-foreground">{meta?.desc}</p>
+                            {quizState.avoidedFamilies.includes(family) && (
+                              <span className="absolute top-2 right-2 w-5 h-5 bg-destructive rounded-full flex items-center justify-center">
+                                <Check className="h-3 w-3 text-destructive-foreground" />
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
               </div>
               <p className="text-center text-sm text-muted-foreground">
                 Skip if none apply
