@@ -35,6 +35,10 @@ interface ReviewsResponse {
   reviews: Review[];
 }
 
+interface SimilarFragrancesResponse {
+  fragrances: Fragrance[];
+}
+
 /* ------------------------------------------------------------------ */
 /*  useFragrances – Discover page                                      */
 /* ------------------------------------------------------------------ */
@@ -167,6 +171,71 @@ export function useFragrance(id: string | undefined) {
       fragranceQuery.refetch();
       reviewsQuery.refetch();
     },
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  useSimilarFragrances – Similar scents for a given fragrance        */
+/* ------------------------------------------------------------------ */
+
+function computeSimilarLocally(target: Fragrance, all: Fragrance[]): Fragrance[] {
+  const targetNotes = new Set(
+    [...target.notes.top, ...target.notes.middle, ...target.notes.base].map((n) => n.id),
+  );
+
+  const scoreFor = (other: Fragrance): number => {
+    if (other.id === target.id) return 0;
+
+    const otherNotes = new Set(
+      [...other.notes.top, ...other.notes.middle, ...other.notes.base].map((n) => n.id),
+    );
+
+    const intersectionSize = [...targetNotes].filter((id) => otherNotes.has(id)).length;
+    const unionSize = new Set([...targetNotes, ...otherNotes]).size;
+    if (unionSize === 0 || intersectionSize === 0) return 0;
+
+    const noteScore = intersectionSize / unionSize;
+
+    const brandScore = target.brand.id === other.brand.id ? 0.1 : 0;
+    const genderScore = target.gender === other.gender ? 0.05 : 0;
+    const concentrationScore = target.concentration === other.concentration ? 0.05 : 0;
+
+    return 2 * noteScore + brandScore + genderScore + concentrationScore;
+  };
+
+  const scored = all
+    .filter((f) => f.id !== target.id)
+    .map((f) => ({ fragrance: f, score: scoreFor(f) }))
+    .filter(({ score }) => score > 0);
+
+  scored.sort((a, b) => b.score - a.score);
+
+  return scored.slice(0, 6).map(({ fragrance }) => fragrance);
+}
+
+export function useSimilarFragrances(id: string | undefined) {
+  const { idToken } = useAuth();
+
+  const query = useQuery({
+    queryKey: ["fragrance-similar", id],
+    queryFn: () =>
+      apiGet<SimilarFragrancesResponse>(`/fragrances/${id}/similar`, idToken ?? undefined),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  const useMock = !!query.error;
+
+  const targetMock = mockFragrances.find((f) => f.id === id) ?? null;
+  const similarFromMock = targetMock ? computeSimilarLocally(targetMock, mockFragrances) : [];
+
+  return {
+    fragrances: useMock ? similarFromMock : (query.data?.fragrances ?? []),
+    isLoading: query.isLoading,
+    isMock: useMock,
+    error: null,
+    refetch: query.refetch,
   };
 }
 

@@ -14,10 +14,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useFragrance } from '@/hooks/use-api';
+import { useFragrance, useSimilarFragrances } from '@/hooks/use-api';
 import { useUpvoteReview } from '@/hooks/use-reviews';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCollection, type CollectionTab } from '@/hooks/use-collection';
+import { FragranceCard } from '@/components/fragrance/FragranceCard';
 
 const COLLECTION_TABS: { tab: CollectionTab; label: string }[] = [
   { tab: 'owned', label: 'Owned' },
@@ -28,6 +29,11 @@ const COLLECTION_TABS: { tab: CollectionTab; label: string }[] = [
 export default function FragranceDetail() {
   const { id } = useParams<{ id: string }>();
   const { fragrance, reviews: fragranceReviews, isLoading, isMock } = useFragrance(id);
+  const {
+    fragrances: similarFragrances,
+    isLoading: isSimilarLoading,
+    isMock: isSimilarMock,
+  } = useSimilarFragrances(id);
   const { userProfile } = useAuth();
   const { upvote } = useUpvoteReview();
   const { getTabsForFragrance, addToCollection, removeFromCollection, isMutating } =
@@ -304,8 +310,48 @@ export default function FragranceDetail() {
                 </div>
               )}
             </TabsContent>
-            <TabsContent value="similar" className="text-center py-12 text-muted-foreground">
-              <p>Similar fragrances coming soon.</p>
+            <TabsContent value="similar" className="space-y-4">
+              {isSimilarMock && (
+                <div className="mb-2 flex items-center justify-center">
+                  <p className="text-xs text-muted-foreground">
+                    Showing sample suggestions — live recommendations will use your full catalogue.
+                  </p>
+                </div>
+              )}
+
+              {isSimilarLoading && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="space-y-3">
+                      <Skeleton className="aspect-[3/4] w-full rounded-xl" />
+                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!isSimilarLoading && similarFragrances.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                  {similarFragrances.map((similar, index) => (
+                    <FragranceCard
+                      key={similar.id}
+                      fragrance={similar}
+                      className="animate-fade-in"
+                      style={{ animationDelay: `${index * 40}ms` } as React.CSSProperties}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {!isSimilarLoading && similarFragrances.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>
+                    No obvious scent twins yet. As the catalogue grows, we&apos;ll surface closer matches here.
+                  </p>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>

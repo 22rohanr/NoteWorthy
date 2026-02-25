@@ -109,6 +109,44 @@ def _apply_sort(fragrances: list[dict], sort_key: str) -> list[dict]:
     )
 
 
+def _note_ids_for(frag: dict) -> set[str]:
+    """Return a set of all note IDs used in a fragrance."""
+    notes_obj = frag.get("notes", {})
+    all_notes = (
+        notes_obj.get("top", [])
+        + notes_obj.get("middle", [])
+        + notes_obj.get("base", [])
+    )
+    return {n.get("id") for n in all_notes if n.get("id")}
+
+
+def _similarity_score(target: dict, other: dict) -> float:
+    """Compute a simple similarity score between two fragrances.
+
+    Heavily weights overlapping notes, with small bonuses for matching
+    brand, gender, and concentration.
+    """
+    if target.get("id") == other.get("id"):
+        return 0.0
+
+    target_notes = _note_ids_for(target)
+    other_notes = _note_ids_for(other)
+
+    if not target_notes or not other_notes:
+        note_score = 0.0
+    else:
+        intersection = target_notes & other_notes
+        union = target_notes | other_notes
+        note_score = len(intersection) / len(union) if union else 0.0
+
+    brand_score = 0.15 if target.get("brand", {}).get("id") == other.get("brand", {}).get("id") else 0.0
+    gender_score = 0.1 if target.get("gender") == other.get("gender") else 0.0
+    concentration_score = 0.05 if target.get("concentration") == other.get("concentration") else 0.0
+
+    # Overall score: notes dominate, metadata provides gentle nudges
+    return 2 * note_score + brand_score + gender_score + concentration_score
+
+
 # ── GET / ────────────────────────────────────────────────────────────
 @fragrances_bp.route("/", methods=["GET"])
 def list_fragrances():
@@ -162,3 +200,35 @@ def get_fragrance_reviews(fragrance_id: str):
 
     reviews = _review_service.get_by_fragrance(fragrance_id)
     return jsonify({"reviews": reviews}), 200
+
+
+# ── GET /<id>/similar ────────────────────────────────────────────────
+@fragrances_bp.route("/<fragrance_id>/similar", methods=["GET"])
+def get_similar_fragrances(fragrance_id: str):
+    """Return a list of fragrances similar to the given fragrance.
+
+    Similarity is based primarily on overlapping notes, with small
+    bonuses for matching brand, gender, and concentration.
+    """
+    cache = get_cache()
+    all_fragrances = cache.fragrances
+
+    target = next((f for f in all_fragrances if f["id"] == fragrance_id), None)
+    if target is None:
+        return jsonify({"error": "Fragrance not found"}), 404
+
+    scored = [
+        (other, _similarity_score(target, other))
+        for other in all_fragrances
+        if other["id"] != fragrance_id
+    ]
+
+    # Filter out completely unrelated entries and sort by score
+    scored = [(f, s) for (f, s) in scored if s > 0.0]
+    scored.sort(key=lambda pair: pair[1], reverse=True)
+
+    # Limit to top N to keep the UI focused
+    top_n = int(request.args.get("limit", 6))
+    similar = [f for (f, _) in scored[: max(top_n, 0)]]
+
+    return jsonify({"fragrances": similar}), 200
