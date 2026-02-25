@@ -190,14 +190,15 @@ function computeSimilarLocally(target: Fragrance, all: Fragrance[]): Fragrance[]
       [...other.notes.top, ...other.notes.middle, ...other.notes.base].map((n) => n.id),
     );
 
-    const intersectionSize = [...targetNotes].filter((id) => otherNotes.has(id)).length;
-    const unionSize = new Set([...targetNotes, ...otherNotes]).size;
-    if (unionSize === 0 || intersectionSize === 0) return 0;
+    let noteScore = 0;
+    if (targetNotes.size > 0 && otherNotes.size > 0) {
+      const intersectionSize = [...targetNotes].filter((id) => otherNotes.has(id)).length;
+      const unionSize = new Set([...targetNotes, ...otherNotes]).size;
+      noteScore = unionSize > 0 ? intersectionSize / unionSize : 0;
+    }
 
-    const noteScore = intersectionSize / unionSize;
-
-    const brandScore = target.brand.id === other.brand.id ? 0.1 : 0;
-    const genderScore = target.gender === other.gender ? 0.05 : 0;
+    const brandScore = target.brand.id === other.brand.id ? 0.15 : 0;
+    const genderScore = target.gender === other.gender ? 0.1 : 0;
     const concentrationScore = target.concentration === other.concentration ? 0.05 : 0;
 
     return 2 * noteScore + brandScore + genderScore + concentrationScore;
