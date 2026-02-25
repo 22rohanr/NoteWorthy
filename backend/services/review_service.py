@@ -31,6 +31,8 @@ Document shape (matches frontend ``Review`` interface):
 The ``id`` field is the Firestore document ID and is injected on read.
 """
 
+from __future__ import annotations
+
 from datetime import datetime, timezone
 
 from google.cloud.firestore_v1 import Increment

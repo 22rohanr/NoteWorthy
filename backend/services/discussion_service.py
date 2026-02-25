@@ -24,6 +24,8 @@ Replies are stored as sub-documents under
     }
 """
 
+from __future__ import annotations
+
 from datetime import datetime, timezone
 
 from google.cloud.firestore_v1 import Increment

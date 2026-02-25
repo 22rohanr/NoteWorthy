@@ -38,6 +38,8 @@ On **write**, the service accepts the frontend-shaped payload (with nested
 ``brand`` object and ``Note`` arrays) and extracts/stores only the IDs.
 """
 
+from __future__ import annotations
+
 from database import get_db
 from services.brand_service import BrandService
 from services.note_service import NoteService

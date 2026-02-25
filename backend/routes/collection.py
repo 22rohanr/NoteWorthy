@@ -11,6 +11,8 @@ Endpoints:
 All endpoints require a valid Firebase ID token in the Authorization header.
 """
 
+from __future__ import annotations
+
 from flask import Blueprint, jsonify, request
 from firebase_admin import auth as firebase_auth
 

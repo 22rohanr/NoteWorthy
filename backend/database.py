@@ -12,6 +12,8 @@ Usage:
     users_ref = db.collection("users")
 """
 
+from __future__ import annotations
+
 import os
 import threading
 

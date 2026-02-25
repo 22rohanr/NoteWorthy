@@ -9,6 +9,8 @@ Endpoints:
     POST  /<id>/upvote   – atomically upvote a review
 """
 
+from __future__ import annotations
+
 from flask import Blueprint, jsonify, request
 from firebase_admin import auth as firebase_auth
 

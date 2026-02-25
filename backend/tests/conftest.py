@@ -18,7 +18,7 @@ import pytest
 # ---------------------------------------------------------------------------
 
 def _patch_firebase_modules():
-    """Insert lightweight stubs for firebase_admin into sys.modules."""
+    """Insert lightweight stubs for firebase_admin and google.cloud.firestore_v1."""
     fa = types.ModuleType("firebase_admin")
     fa.initialize_app = MagicMock()
     fa._apps = {"[DEFAULT]": True}
@@ -39,6 +39,19 @@ def _patch_firebase_modules():
     sys.modules["firebase_admin.auth"] = fa_auth
     sys.modules["firebase_admin.credentials"] = fa_cred
     sys.modules["firebase_admin.firestore"] = fa_firestore
+
+    # Stub google.cloud.firestore_v1 used for ArrayUnion/ArrayRemove/Increment
+    google_mod = types.ModuleType("google")
+    cloud_mod = types.ModuleType("google.cloud")
+    firestore_v1 = types.ModuleType("google.cloud.firestore_v1")
+
+    firestore_v1.ArrayRemove = MagicMock()
+    firestore_v1.ArrayUnion = MagicMock()
+    firestore_v1.Increment = MagicMock()
+
+    sys.modules.setdefault("google", google_mod)
+    sys.modules.setdefault("google.cloud", cloud_mod)
+    sys.modules["google.cloud.firestore_v1"] = firestore_v1
 
 
 _patch_firebase_modules()

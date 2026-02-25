@@ -11,6 +11,8 @@ Document shape (matches frontend ``Brand`` interface):
 The ``id`` field is the Firestore document ID and is injected on read.
 """
 
+from __future__ import annotations
+
 from database import get_db
 
 
