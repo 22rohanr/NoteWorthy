@@ -8,6 +8,7 @@ import { FragranceCard } from '@/components/fragrance/FragranceCard';
 import { NoteBadge } from '@/components/ui/note-badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFragrances } from '@/hooks/use-api';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
@@ -32,8 +33,26 @@ export default function Discover() {
   const [selectedGender, setSelectedGender] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('rating');
   const [notesExpanded, setNotesExpanded] = useState(false);
+  const [priceRange, setPriceRange] = useState<[number, number] | null>(null);
 
   const COLLAPSED_NOTE_LIMIT = 8;
+
+  const priceStats = useMemo(() => {
+    const withPrice = fragrances.filter((f) => f.price);
+    if (withPrice.length === 0) return null;
+
+    const amounts = withPrice.map((f) => f.price!.amount);
+    const min = Math.min(...amounts);
+    const max = Math.max(...amounts);
+
+    return { min, max };
+  }, [fragrances]);
+
+  const effectivePriceRange = useMemo<[number, number] | null>(() => {
+    if (!priceStats) return null;
+    if (!priceRange) return [priceStats.min, priceStats.max];
+    return priceRange;
+  }, [priceStats, priceRange]);
 
   // Sort notes so selected ones appear first, then limit when collapsed
   const visibleNotes = useMemo(() => {
@@ -95,6 +114,7 @@ export default function Discover() {
     setSelectedConcentration('all');
     setSelectedGender('all');
     setSearchQuery('');
+    setPriceRange(null);
   };
 
   const filteredFragrances = fragrances
@@ -112,6 +132,17 @@ export default function Discover() {
           allNotes.some((n) => n.id === noteId)
         );
         if (!hasNote) return false;
+      }
+      if (priceStats && effectivePriceRange) {
+        const isDefaultPriceRange =
+          effectivePriceRange[0] <= priceStats.min &&
+          effectivePriceRange[1] >= priceStats.max;
+
+        if (!isDefaultPriceRange) {
+          if (!f.price) return false;
+          const amount = f.price.amount;
+          if (amount < effectivePriceRange[0] || amount > effectivePriceRange[1]) return false;
+        }
       }
       if ((sortBy === 'price-low' || sortBy === 'price-high') && !f.price) return false;
       return true;
@@ -133,8 +164,15 @@ export default function Discover() {
       }
     });
 
+  const priceFilterActive = !!(
+    priceStats &&
+    effectivePriceRange &&
+    (effectivePriceRange[0] > priceStats.min ||
+      effectivePriceRange[1] < priceStats.max)
+  );
+
   const hasActiveFilters = selectedNotes.length > 0 || selectedBrand !== 'all' ||
-    selectedConcentration !== 'all' || selectedGender !== 'all';
+    selectedConcentration !== 'all' || selectedGender !== 'all' || priceFilterActive;
 
   return (
     <div className="min-h-screen bg-background">
@@ -183,7 +221,8 @@ export default function Discover() {
               {hasActiveFilters && (
                 <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
                   {selectedNotes.length + (selectedBrand !== 'all' ? 1 : 0) +
-                    (selectedConcentration !== 'all' ? 1 : 0) + (selectedGender !== 'all' ? 1 : 0)}
+                    (selectedConcentration !== 'all' ? 1 : 0) + (selectedGender !== 'all' ? 1 : 0) +
+                    (priceFilterActive ? 1 : 0)}
                 </span>
               )}
             </Button>
@@ -202,6 +241,28 @@ export default function Discover() {
                 </Button>
               )}
             </div>
+
+            {/* Price range */}
+            {priceStats && effectivePriceRange && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Price range</Label>
+                  <span className="text-xs text-muted-foreground">
+                    ${Math.round(effectivePriceRange[0])} - ${Math.round(effectivePriceRange[1])}
+                  </span>
+                </div>
+                <Slider
+                  aria-label="Price range"
+                  min={Math.floor(priceStats.min)}
+                  max={Math.ceil(priceStats.max)}
+                  step={5}
+                  value={effectivePriceRange}
+                  onValueChange={(value) =>
+                    setPriceRange([value[0], value[1]])
+                  }
+                />
+              </div>
+            )}
 
             {/* Brand, Concentration, Gender */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

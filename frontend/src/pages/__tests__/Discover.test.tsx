@@ -200,4 +200,34 @@ describe("Discover page – price filtering logic", () => {
 
     expect(filtered).toHaveLength(2);
   });
+
+  it("price range filter keeps only fragrances within the selected range and excludes those without prices", () => {
+    const fragrances = [fragranceWithPrice, fragranceWithoutPrice, fragranceCheap];
+    const priceStats = { min: 30, max: 350 };
+    const effectivePriceRange: [number, number] = [30, 100];
+
+    const isDefaultPriceRange =
+      effectivePriceRange[0] <= priceStats.min &&
+      effectivePriceRange[1] >= priceStats.max;
+
+    const filtered = fragrances.filter((f) => {
+      if (!isDefaultPriceRange) {
+        if (!f.price) return false;
+        const amount = f.price.amount;
+        if (amount < effectivePriceRange[0] || amount > effectivePriceRange[1]) return false;
+      }
+      return true;
+    });
+
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].name).toBe("Budget Fresh");
+  });
+
+  it("shows the price range slider when filters are opened", () => {
+    renderPage();
+    fireEvent.click(screen.getByText("Filters"));
+
+    expect(screen.getByText("Price range")).toBeInTheDocument();
+    expect(screen.getAllByRole("slider")).toHaveLength(2);
+  });
 });
