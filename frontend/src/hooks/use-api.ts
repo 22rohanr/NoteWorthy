@@ -241,6 +241,42 @@ export function useSimilarFragrances(id: string | undefined) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  useTrending – Trending notes & brands from recent reviews          */
+/* ------------------------------------------------------------------ */
+
+interface TrendingNote {
+  name: string;
+  family: string | null;
+  count: number;
+}
+
+interface TrendingBrand {
+  name: string;
+  count: number;
+}
+
+interface TrendingResponse {
+  notes: TrendingNote[];
+  brands: TrendingBrand[];
+}
+
+export function useTrending() {
+  const query = useQuery({
+    queryKey: ["trending"],
+    queryFn: () => apiGet<TrendingResponse>("/analytics/trending"),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  return {
+    notes: query.data?.notes ?? [],
+    brands: query.data?.brands ?? [],
+    isLoading: query.isLoading,
+    error: query.error,
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /*  useDiscussions – Discussions list page                              */
 /* ------------------------------------------------------------------ */
 

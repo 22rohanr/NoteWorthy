@@ -46,6 +46,7 @@ def create_app() -> Flask:
 
 def _register_blueprints(app: Flask) -> None:
     """Import and register all route blueprints."""
+    from routes.analytics import analytics_bp
     from routes.auth import auth_bp
     from routes.fragrances import fragrances_bp
     from routes.reviews import reviews_bp
@@ -53,6 +54,7 @@ def _register_blueprints(app: Flask) -> None:
     from routes.collection import collection_bp
     from routes.discussions import discussions_bp
 
+    app.register_blueprint(analytics_bp,     url_prefix="/api/analytics")
     app.register_blueprint(auth_bp,          url_prefix="/api/auth")
     app.register_blueprint(fragrances_bp,    url_prefix="/api/fragrances")
     app.register_blueprint(reviews_bp,       url_prefix="/api/reviews")

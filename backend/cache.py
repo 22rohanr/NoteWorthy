@@ -41,6 +41,7 @@ class _DataCache:
         self._brands: list[dict] = []
         self._notes: list[dict] = []
         self._fragrances: list[dict] = []
+        self._fragrance_map: dict[str, dict] = {}
 
         self._loaded_at: float = 0  # epoch seconds
 
@@ -60,6 +61,12 @@ class _DataCache:
     def fragrances(self) -> list[dict]:
         self._ensure_loaded()
         return self._fragrances
+
+    @property
+    def fragrance_map(self) -> dict[str, dict]:
+        """O(1) lookup of fully-resolved fragrances by document ID."""
+        self._ensure_loaded()
+        return self._fragrance_map
 
     def invalidate(self):
         """Force the next access to reload from Firestore."""
@@ -169,6 +176,8 @@ class _DataCache:
                 "ratings": ratings,
                 "price": price,
             })
+
+        self._fragrance_map = {f["id"]: f for f in self._fragrances}
 
         self._loaded_at = time.time()
         print(

@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import { useDiscussions, useCreateDiscussion } from '@/hooks/use-api';
 import { useAuth } from '@/contexts/AuthContext';
+import { TrendingSidebar } from '@/components/TrendingSidebar';
 import type { DiscussionCategory } from '@/data/discussionData';
 import { cn } from '@/lib/utils';
 
@@ -162,87 +163,98 @@ export default function Discussions() {
         </div>
       </section>
 
-      {/* Filters */}
-      <div className="container pt-8 pb-4 flex flex-wrap gap-2">
-        {(['All', ...CATEGORIES] as const).map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setFilter(cat)}
-            className={cn(
-              'rounded-full px-4 py-1.5 text-sm font-medium border transition-colors',
-              filter === cat
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-card text-muted-foreground border-border/60 hover:border-primary/40',
-            )}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      {/* Thread list */}
-      <section className="container pb-12 max-w-3xl space-y-4">
-        {isLoading &&
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border/60 bg-card p-5 space-y-3">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-5 w-3/4" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-3 w-48" />
-            </div>
-          ))}
-
-        {!isLoading && filtered.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-muted-foreground mb-4">
-              {filter === 'All'
-                ? 'No discussions yet. Be the first to start one!'
-                : `No discussions in ${filter}. Start one?`}
-            </p>
+      {/* Main content grid */}
+      <div className="container pb-12 pt-8 grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8">
+        {/* Left column – filters + thread list */}
+        <div>
+          {/* Filters */}
+          <div className="pb-4 flex flex-wrap gap-2">
+            {(['All', ...CATEGORIES] as const).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setFilter(cat)}
+                className={cn(
+                  'rounded-full px-4 py-1.5 text-sm font-medium border transition-colors',
+                  filter === cat
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-card text-muted-foreground border-border/60 hover:border-primary/40',
+                )}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
-        )}
 
-        {!isLoading &&
-          filtered.map((thread) => (
-            <Link key={thread.id} to={`/discussions/${thread.id}`}>
-              <article className="rounded-xl border border-border/60 bg-card p-5 hover:shadow-md hover:border-primary/20 transition-all duration-300">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] px-2 py-0 ${categoryStyle[thread.category]}`}
-                      >
-                        {thread.category}
-                      </Badge>
+          {/* Thread list */}
+          <div className="space-y-4">
+            {isLoading &&
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-xl border border-border/60 bg-card p-5 space-y-3">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+              ))}
+
+            {!isLoading && filtered.length === 0 && (
+              <div className="text-center py-16">
+                <p className="text-muted-foreground mb-4">
+                  {filter === 'All'
+                    ? 'No discussions yet. Be the first to start one!'
+                    : `No discussions in ${filter}. Start one?`}
+                </p>
+              </div>
+            )}
+
+            {!isLoading &&
+              filtered.map((thread) => (
+                <Link key={thread.id} to={`/discussions/${thread.id}`}>
+                  <article className="rounded-xl border border-border/60 bg-card p-5 hover:shadow-md hover:border-primary/20 transition-all duration-300">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] px-2 py-0 ${categoryStyle[thread.category]}`}
+                          >
+                            {thread.category}
+                          </Badge>
+                        </div>
+                        <h2 className="font-display text-lg font-semibold tracking-tight leading-snug mb-1.5">
+                          {thread.title}
+                        </h2>
+                        {thread.body && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">{thread.body}</p>
+                        )}
+                      </div>
                     </div>
-                    <h2 className="font-display text-lg font-semibold tracking-tight leading-snug mb-1.5">
-                      {thread.title}
-                    </h2>
-                    {thread.body && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">{thread.body}</p>
-                    )}
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <User className="h-3 w-3" />
-                    {thread.authorName}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" />
-                    {timeAgo(thread.createdAt)}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <MessageCircle className="h-3 w-3" />
-                    {thread.commentCount} comments
-                  </span>
-                </div>
-              </article>
-            </Link>
-          ))}
-      </section>
+                    <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <User className="h-3 w-3" />
+                        {thread.authorName}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3" />
+                        {timeAgo(thread.createdAt)}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <MessageCircle className="h-3 w-3" />
+                        {thread.commentCount} comments
+                      </span>
+                    </div>
+                  </article>
+                </Link>
+              ))}
+          </div>
+        </div>
+
+        {/* Right column – trending sidebar (desktop only) */}
+        <div className="hidden lg:block">
+          <TrendingSidebar />
+        </div>
+      </div>
     </div>
   );
 }

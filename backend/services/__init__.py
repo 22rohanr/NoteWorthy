@@ -10,6 +10,7 @@ from services.brand_service import BrandService
 from services.fragrance_service import FragranceService
 from services.note_service import NoteService
 from services.review_service import ReviewService
+from services.trending_service import TrendingService
 from services.user_service import UserService
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "FragranceService",
     "NoteService",
     "ReviewService",
+    "TrendingService",
     "UserService",
 ]
