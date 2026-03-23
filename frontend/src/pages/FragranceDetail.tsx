@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Star, Heart, Share2, Plus, Check, Info, ChevronDown, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { useUpvoteReview } from '@/hooks/use-reviews';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCollection, type CollectionTab } from '@/hooks/use-collection';
 import { FragranceCard } from '@/components/fragrance/FragranceCard';
+import { toast } from 'sonner';
 
 const COLLECTION_TABS: { tab: CollectionTab; label: string }[] = [
   { tab: 'owned', label: 'Owned' },
@@ -54,6 +55,27 @@ export default function FragranceDetail() {
       await addToCollection(id, tab);
     }
   };
+
+  const handleShare = useCallback(async () => {
+    const url = window.location.href;
+    const title = fragrance
+      ? `${fragrance.name} by ${fragrance.brand.name}`
+      : 'NoteWorthy Fragrance';
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== 'AbortError') {
+          await navigator.clipboard.writeText(url);
+          toast.success('Link copied to clipboard');
+        }
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied to clipboard');
+    }
+  }, [fragrance]);
 
   /* ── Loading state ───────────────────────────────────────────────── */
   if (isLoading) {
@@ -162,7 +184,12 @@ export default function FragranceDetail() {
               >
                 <Heart className={isWishlisted ? "h-5 w-5 fill-primary text-primary" : "h-5 w-5"} />
               </Button>
-              <Button variant="secondary" size="icon" className="h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm">
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm"
+                onClick={handleShare}
+              >
                 <Share2 className="h-5 w-5" />
               </Button>
             </div>
