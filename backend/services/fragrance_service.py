@@ -43,6 +43,7 @@ from __future__ import annotations
 from database import get_db
 from services.brand_service import BrandService
 from services.note_service import NoteService
+from services.review_service import ReviewService
 
 
 class FragranceService:
@@ -54,6 +55,7 @@ class FragranceService:
         self._db = get_db()
         self._brand_service = BrandService()
         self._note_service = NoteService()
+        self._review_service = ReviewService()
 
     # ── private helpers ──────────────────────────────────────────────
     def _resolve(self, doc) -> dict:
@@ -318,3 +320,32 @@ class FragranceService:
     def delete(self, fragrance_id: str) -> None:
         """Delete a fragrance document."""
         self._db.collection(self.COLLECTION).document(fragrance_id).delete()
+
+    # ── Aggregate operations ─────────────────────────────────────────
+    def recalculate_ratings(self, fragrance_id: str) -> None:
+        """Recompute aggregate ratings from all reviews for a fragrance."""
+        reviews = self._review_service.get_by_fragrance(fragrance_id)
+        count = len(reviews)
+
+        if count == 0:
+            ratings = {
+                "ratings.overall": 0,
+                "ratings.longevity": 0,
+                "ratings.sillage": 0,
+                "ratings.value": 0,
+                "ratings.reviewCount": 0,
+            }
+        else:
+            totals = {"overall": 0.0, "longevity": 0.0, "sillage": 0.0, "value": 0.0}
+            for r in reviews:
+                for key in totals:
+                    totals[key] += r.get("rating", {}).get(key, 0)
+            ratings = {
+                "ratings.overall": round(totals["overall"] / count, 2),
+                "ratings.longevity": round(totals["longevity"] / count, 2),
+                "ratings.sillage": round(totals["sillage"] / count, 2),
+                "ratings.value": round(totals["value"] / count, 2),
+                "ratings.reviewCount": count,
+            }
+
+        self._db.collection(self.COLLECTION).document(fragrance_id).update(ratings)

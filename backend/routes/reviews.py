@@ -17,12 +17,14 @@ from firebase_admin import auth as firebase_auth
 from services.review_service import ReviewService
 from services.fragrance_service import FragranceService
 from services.user_service import UserService
+from cache import get_cache
 
 reviews_bp = Blueprint("reviews", __name__)
 
 _review_service = ReviewService()
 _fragrance_service = FragranceService()
 _user_service = UserService()
+_cache = get_cache()
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -137,6 +139,10 @@ def create_review():
     }
 
     new_id = _review_service.create(review_data)
+
+    _fragrance_service.recalculate_ratings(body["fragranceId"])
+    _cache.invalidate()
+
     return jsonify({"id": new_id}), 201
 
 
@@ -189,7 +195,13 @@ def delete_review(review_id: str):
     if review.get("userId") != uid:
         return jsonify({"error": "You can only delete your own reviews"}), 403
 
+    fragrance_id = review.get("fragranceId", "")
     _review_service.delete(review_id)
+
+    if fragrance_id:
+        _fragrance_service.recalculate_ratings(fragrance_id)
+        _cache.invalidate()
+
     return jsonify({"success": True}), 200
 
 
