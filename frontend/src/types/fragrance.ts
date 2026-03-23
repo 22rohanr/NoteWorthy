@@ -64,6 +64,7 @@ export interface Review {
     dryDown: string;
   };
   upvotes: number;
+  upvotedBy?: string[];
   createdAt: string;
 }
 

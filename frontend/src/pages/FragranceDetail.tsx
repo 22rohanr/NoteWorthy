@@ -35,7 +35,7 @@ export default function FragranceDetail() {
     isLoading: isSimilarLoading,
     isMock: isSimilarMock,
   } = useSimilarFragrances(id);
-  const { userProfile } = useAuth();
+  const { firebaseUser, userProfile } = useAuth();
   const { upvote } = useUpvoteReview();
   const { getTabsForFragrance, addToCollection, removeFromCollection, isMutating } =
     useCollection();
@@ -329,7 +329,16 @@ export default function FragranceDetail() {
               </div>
               {fragranceReviews.length > 0 ? (
                 fragranceReviews.map((review) => (
-                  <ReviewCard key={review.id} review={review} onUpvote={upvote} />
+                  <ReviewCard
+                    key={review.id}
+                    review={review}
+                    currentUserId={firebaseUser?.uid}
+                    onUpvote={async (reviewId) => {
+                      const token = await firebaseUser?.getIdToken();
+                      if (!token) return;
+                      return upvote(reviewId, token);
+                    }}
+                  />
                 ))
               ) : (
                 <div className="text-center py-12 text-muted-foreground">

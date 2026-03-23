@@ -196,11 +196,15 @@ def delete_review(review_id: str):
 # ── POST /<id>/upvote ────────────────────────────────────────────────
 @reviews_bp.route("/<review_id>/upvote", methods=["POST"])
 def upvote_review(review_id: str):
-    """Atomically increment the upvote count of a review."""
+    """Toggle an upvote on a review (authenticated, one vote per user)."""
+    uid, error = _get_uid_from_token()
+    if error:
+        return error
+
     review = _review_service.get_by_id(review_id)
     if review is None:
         return jsonify({"error": "Review not found"}), 404
 
-    _review_service.upvote(review_id)
-    return jsonify({"success": True}), 200
+    added = _review_service.toggle_upvote(review_id, uid)
+    return jsonify({"success": True, "upvoted": added}), 200
 

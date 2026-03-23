@@ -31,6 +31,7 @@ export interface ReviewData {
         dryDown: string;
     };
     upvotes: number;
+    upvotedBy?: string[];
     createdAt: string;
     fragrance?: ReviewFragrance;
 }
@@ -58,15 +59,20 @@ export function useReviews() {
 }
 
 /**
- * Upvote a review.  Returns a simple helper that POSTs the upvote.
+ * Toggle upvote on a review (authenticated, one vote per user).
  */
 export function useUpvoteReview() {
     const [isUpvoting, setIsUpvoting] = useState(false);
 
-    const upvote = useCallback(async (reviewId: string) => {
+    const upvote = useCallback(async (reviewId: string, idToken: string) => {
         setIsUpvoting(true);
         try {
-            await apiPost(`/reviews/${reviewId}/upvote`, {});
+            const res = await apiPost<{ upvoted: boolean }>(
+                `/reviews/${reviewId}/upvote`,
+                {},
+                idToken,
+            );
+            return res.upvoted;
         } finally {
             setIsUpvoting(false);
         }

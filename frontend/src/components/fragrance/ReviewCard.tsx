@@ -7,21 +7,28 @@ import { RatingBar } from '@/components/ui/rating-bar';
 
 interface ReviewCardProps {
   review: Review;
-  onUpvote?: (reviewId: string) => Promise<void>;
+  currentUserId?: string;
+  onUpvote?: (reviewId: string) => Promise<boolean | void>;
 }
 
-export function ReviewCard({ review, onUpvote }: ReviewCardProps) {
-  const [upvoted, setUpvoted] = useState(false);
+export function ReviewCard({ review, currentUserId, onUpvote }: ReviewCardProps) {
+  const alreadyUpvoted = !!(currentUserId && review.upvotedBy?.includes(currentUserId));
+  const [upvoted, setUpvoted] = useState(alreadyUpvoted);
   const [displayCount, setDisplayCount] = useState(review.upvotes);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleUpvote = async () => {
-    if (upvoted || isLoading || !onUpvote) return;
+    if (isLoading || !onUpvote) return;
     setIsLoading(true);
     try {
-      await onUpvote(review.id);
-      setUpvoted(true);
-      setDisplayCount((c) => c + 1);
+      const result = await onUpvote(review.id);
+      if (typeof result === 'boolean') {
+        setUpvoted(result);
+        setDisplayCount((c) => result ? c + 1 : c - 1);
+      } else {
+        setUpvoted(true);
+        setDisplayCount((c) => c + 1);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +102,7 @@ export function ReviewCard({ review, onUpvote }: ReviewCardProps) {
           size="sm"
           className={`gap-2 ml-auto ${upvoted ? 'text-primary' : ''}`}
           onClick={handleUpvote}
-          disabled={upvoted || isLoading || !onUpvote}
+          disabled={isLoading || !onUpvote}
         >
           <ThumbsUp className={`h-4 w-4 ${upvoted ? 'fill-primary' : ''}`} />
           <span>{displayCount} upvotes</span>

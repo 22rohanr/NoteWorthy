@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from google.cloud.firestore_v1 import Increment
+from google.cloud.firestore_v1 import ArrayRemove, ArrayUnion, Increment
 
 from database import get_db
 
@@ -93,6 +93,7 @@ class ReviewService:
             "wearContext": wear_context,
             "impressions": impressions,
             "upvotes": data.get("upvotes", 0),
+            "upvotedBy": data.get("upvotedBy", []),
             "createdAt": data.get("createdAt", ""),
         }
 
@@ -207,8 +208,23 @@ class ReviewService:
         self._db.collection(self.COLLECTION).document(review_id).delete()
 
     # ── Special operations ───────────────────────────────────────────
-    def upvote(self, review_id: str) -> None:
-        """Atomically increment the upvote count by 1."""
-        self._db.collection(self.COLLECTION).document(review_id).update(
-            {"upvotes": Increment(1)}
-        )
+    def toggle_upvote(self, review_id: str, user_id: str) -> bool:
+        """Toggle an upvote for a user. Returns True if upvoted, False if removed."""
+        doc_ref = self._db.collection(self.COLLECTION).document(review_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return False
+
+        upvoted_by = doc.to_dict().get("upvotedBy", [])
+        if user_id in upvoted_by:
+            doc_ref.update({
+                "upvotes": Increment(-1),
+                "upvotedBy": ArrayRemove([user_id]),
+            })
+            return False
+        else:
+            doc_ref.update({
+                "upvotes": Increment(1),
+                "upvotedBy": ArrayUnion([user_id]),
+            })
+            return True
