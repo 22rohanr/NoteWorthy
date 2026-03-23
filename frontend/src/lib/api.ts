@@ -47,6 +47,33 @@ export async function apiGet<T = unknown>(
   return data as T;
 }
 
+export async function apiPatch<T = unknown>(
+  path: string,
+  body: Record<string, unknown>,
+  token?: string,
+): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || `Request failed with status ${res.status}`);
+  }
+
+  return data as T;
+}
+
 export async function apiDelete<T = unknown>(
   path: string,
   token?: string,

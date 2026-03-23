@@ -27,6 +27,7 @@ export interface UserProfile {
   bio: string;
   preferences: {
     favoriteNotes: string[];
+    avoidedNotes: string[];
     favoriteConcentrations: string[];
     favoriteOccasions: string[];
   };

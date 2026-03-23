@@ -4,6 +4,9 @@ import { ArrowRight, ArrowLeft, ShoppingBag, FlaskConical, Check } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiPatch } from '@/lib/api';
+import { toast } from 'sonner';
 
 type ExperienceLevel = 'casual' | 'enthusiast' | null;
 
@@ -31,7 +34,9 @@ const OCCASION_OPTIONS = [
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { idToken, refreshProfile } = useAuth();
   const [step, setStep] = useState(1);
+  const [isSaving, setIsSaving] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('left');
 
@@ -68,8 +73,27 @@ const Onboarding = () => {
 
   const skip = () => navigate('/');
 
-  const complete = () => {
-    // In a real app, save the profile to the backend
+  const complete = async () => {
+    if (!idToken) {
+      navigate('/');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await apiPatch('/auth/profile', {
+        preferences: {
+          favoriteNotes: state.likedNotes,
+          avoidedNotes: state.avoidedNotes,
+          favoriteOccasions: state.occasions,
+        },
+      }, idToken);
+      await refreshProfile();
+      toast.success('Preferences saved!');
+    } catch {
+      toast.error('Could not save preferences');
+    } finally {
+      setIsSaving(false);
+    }
     navigate('/');
   };
 
@@ -316,9 +340,9 @@ const Onboarding = () => {
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back
                 </Button>
-                <Button onClick={complete} size="lg" className="min-w-[180px]">
-                  Complete Profile
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                <Button onClick={complete} size="lg" className="min-w-[180px]" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Complete Profile'}
+                  {!isSaving && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               </div>
             </div>

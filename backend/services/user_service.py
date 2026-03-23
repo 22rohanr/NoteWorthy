@@ -44,9 +44,10 @@ class UserService:
     @staticmethod
     def _default_preferences() -> dict:
         return {
-            "likedNotes": [],
+            "favoriteNotes": [],
             "avoidedNotes": [],
-            "preferredConcentrations": [],
+            "favoriteConcentrations": [],
+            "favoriteOccasions": [],
         }
 
     @staticmethod
@@ -60,14 +61,17 @@ class UserService:
     def _doc_to_dict(self, doc) -> dict:
         """Convert a Firestore DocumentSnapshot to a frontend-shaped dict."""
         data = doc.to_dict()
+        created = data.get("createdAt", "")
         return {
             "id": doc.id,
             "username": data.get("username", ""),
             "email": data.get("email", ""),
             "avatar": data.get("avatar"),
+            "bio": data.get("bio", ""),
             "preferences": data.get("preferences") or self._default_preferences(),
             "collection": data.get("collection") or self._default_collection(),
-            "createdAt": data.get("createdAt", ""),
+            "createdAt": created,
+            "joinDate": created,
         }
 
     # ── Read ─────────────────────────────────────────────────────────
@@ -102,6 +106,7 @@ class UserService:
             "username": data.get("username", ""),
             "email": data.get("email", ""),
             "avatar": data.get("avatar"),
+            "bio": data.get("bio", ""),
             "preferences": data.get("preferences", self._default_preferences()),
             "collection": data.get("collection", self._default_collection()),
             "createdAt": data.get(
@@ -138,7 +143,7 @@ class UserService:
         Supports top-level fields as well as nested ``preferences`` and
         ``collection`` sub-objects.
         """
-        allowed_top = {"username", "email", "avatar", "createdAt"}
+        allowed_top = {"username", "email", "avatar", "bio", "createdAt"}
         allowed_nested = {"preferences", "collection"}
 
         update_data: dict = {}

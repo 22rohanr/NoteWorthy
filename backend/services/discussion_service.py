@@ -92,6 +92,16 @@ class DiscussionService:
         )
         return [self._reply_to_dict(doc) for doc in docs]
 
+    def get_by_user(self, user_id: str) -> list[dict]:
+        """Return all discussions authored by a given user."""
+        docs = (
+            self._db.collection(self.COLLECTION)
+            .where("authorId", "==", user_id)
+            .order_by("createdAt", direction="DESCENDING")
+            .stream()
+        )
+        return [self._doc_to_dict(doc) for doc in docs]
+
     # ── Write ─────────────────────────────────────────────────────────
 
     def create(self, data: dict) -> dict:

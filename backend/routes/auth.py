@@ -12,10 +12,29 @@ from flask import Blueprint, jsonify, request
 from firebase_admin import auth as firebase_auth
 
 from services.user_service import UserService
+from services.review_service import ReviewService
+from services.discussion_service import DiscussionService
+from services.fragrance_service import FragranceService
 
 auth_bp = Blueprint("auth", __name__)
 
 _user_service = UserService()
+_review_service = ReviewService()
+_discussion_service = DiscussionService()
+_fragrance_service = FragranceService()
+
+
+def _get_uid_from_token() -> tuple[str | None, tuple | None]:
+    """Extract and verify the Firebase UID from the Authorization header."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None, (jsonify({"error": "Authorization header required"}), 401)
+    id_token = auth_header.split("Bearer ", 1)[1]
+    try:
+        decoded = firebase_auth.verify_id_token(id_token)
+    except Exception:
+        return None, (jsonify({"error": "Invalid or expired token"}), 401)
+    return decoded.get("uid", ""), None
 
 
 # ── POST /login ──────────────────────────────────────────────────────
@@ -109,3 +128,91 @@ def register():
     })
 
     return jsonify({"user": user}), 201
+
+
+# ── GET /profile/<user_id> ───────────────────────────────────────────
+@auth_bp.route("/profile/<user_id>", methods=["GET"])
+def get_profile(user_id: str):
+    """Return a user profile with activity summary.
+
+    Public fields are always returned.  The ``email`` field is only
+    included when the requester is the profile owner.
+    """
+    user = _user_service.get_by_id(user_id)
+    if user is None:
+        return jsonify({"error": "User not found"}), 404
+
+    # Determine if the caller owns this profile
+    is_owner = False
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            decoded = firebase_auth.verify_id_token(
+                auth_header.split("Bearer ", 1)[1]
+            )
+            is_owner = decoded.get("uid") == user_id
+        except Exception:
+            pass
+
+    # Strip private fields for non-owners
+    if not is_owner:
+        user.pop("email", None)
+
+    # Activity: recent reviews
+    reviews = _review_service.get_by_user(user_id)
+    frag_ids = {r.get("fragranceId", "") for r in reviews if r.get("fragranceId")}
+    frag_map: dict[str, dict] = {}
+    for fid in frag_ids:
+        frag = _fragrance_service.get_by_id(fid)
+        if frag:
+            frag_map[fid] = {
+                "id": frag["id"],
+                "name": frag.get("name", ""),
+                "brand": {"name": frag.get("brand", {}).get("name", "")},
+            }
+    enriched_reviews = [
+        {**r, "fragrance": frag_map.get(r.get("fragranceId", ""))}
+        for r in reviews
+    ]
+    enriched_reviews.sort(key=lambda r: r.get("createdAt", ""), reverse=True)
+
+    # Activity: discussions
+    discussions = _discussion_service.get_by_user(user_id)
+
+    return jsonify({
+        "user": user,
+        "reviews": enriched_reviews[:10],
+        "reviewCount": len(reviews),
+        "discussions": discussions[:10],
+        "discussionCount": len(discussions),
+    }), 200
+
+
+# ── PATCH /profile ───────────────────────────────────────────────────
+@auth_bp.route("/profile", methods=["PATCH"])
+def update_profile():
+    """Update the authenticated user's profile.
+
+    Accepts any combination of: ``username``, ``bio``, ``avatar``,
+    ``preferences`` (partial merge via dot-notation).
+    """
+    uid, error = _get_uid_from_token()
+    if error:
+        return error
+
+    user = _user_service.get_by_id(uid)
+    if user is None:
+        return jsonify({"error": "User profile not found"}), 404
+
+    body = request.get_json(silent=True) or {}
+
+    allowed = {"username", "bio", "avatar", "preferences"}
+    update_data = {k: v for k, v in body.items() if k in allowed}
+
+    if not update_data:
+        return jsonify({"error": "No valid fields to update"}), 400
+
+    _user_service.update(uid, update_data)
+
+    updated_user = _user_service.get_by_id(uid)
+    return jsonify({"user": updated_user}), 200
