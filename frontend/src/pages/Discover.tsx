@@ -70,7 +70,13 @@ export default function Discover() {
 
     const brandParam = searchParams.get('brand');
     const noteParam = searchParams.get('note');
-    let filtersApplied = false;
+    const searchParam = searchParams.get('search');
+    let paramsConsumed = false;
+
+    if (searchParam) {
+      setSearchQuery(searchParam);
+      paramsConsumed = true;
+    }
 
     if (brandParam && brands.length > 0) {
       const match = brands.find(
@@ -78,7 +84,8 @@ export default function Discover() {
       );
       if (match) {
         setSelectedBrand(match.id);
-        filtersApplied = true;
+        setShowFilters(true);
+        paramsConsumed = true;
       }
     }
 
@@ -88,14 +95,12 @@ export default function Discover() {
       );
       if (match) {
         setSelectedNotes([match.id]);
-        filtersApplied = true;
+        setShowFilters(true);
+        paramsConsumed = true;
       }
     }
 
-    if (filtersApplied) {
-      setShowFilters(true);
-      // Clear the query params so refreshing resets, and so that
-      // manually changing filters later doesn't conflict
+    if (paramsConsumed) {
       setSearchParams({}, { replace: true });
     }
   }, [isLoading, brands, notes]); // eslint-disable-line react-hooks/exhaustive-deps
