@@ -25,7 +25,7 @@ export function Header() {
     if (!q) return;
     setIsSearchOpen(false);
     setSearchQuery('');
-    navigate(`/discover?search=${encodeURIComponent(q)}`);
+    navigate(`/search?q=${encodeURIComponent(q)}`);
   };
 
   const isLoggedIn = !loading && !!firebaseUser;
