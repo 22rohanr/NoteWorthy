@@ -108,10 +108,13 @@ export default function DiscussionDetail() {
           )}
 
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
+            <Link
+              to={`/profile/${discussion.authorId}`}
+              className="flex items-center gap-1.5 hover:text-primary transition-colors"
+            >
               <User className="h-3 w-3" />
               {discussion.authorName}
-            </span>
+            </Link>
             <span className="flex items-center gap-1.5">
               <Clock className="h-3 w-3" />
               {formatTime(discussion.createdAt)}
@@ -147,10 +150,13 @@ export default function DiscussionDetail() {
                   {reply.body}
                 </p>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1.5">
+                  <Link
+                    to={`/profile/${reply.authorId}`}
+                    className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                  >
                     <User className="h-3 w-3" />
                     {reply.authorName}
-                  </span>
+                  </Link>
                   <span className="flex items-center gap-1.5">
                     <Clock className="h-3 w-3" />
                     {formatTime(reply.createdAt)}

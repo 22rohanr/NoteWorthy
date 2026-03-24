@@ -23,11 +23,19 @@ export default function Reviews() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+          <Link
+            to={`/profile/${review.userId}`}
+            className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary hover:bg-primary/20 transition-colors"
+          >
             {review.userName.charAt(0)}
-          </div>
+          </Link>
           <div>
-            <p className="font-medium text-sm">{review.userName}</p>
+            <Link
+              to={`/profile/${review.userId}`}
+              className="font-medium text-sm hover:text-primary transition-colors"
+            >
+              {review.userName}
+            </Link>
             {review.fragrance && (
               <Link
                 to={`/fragrance/${review.fragrance.id}`}

@@ -4,6 +4,7 @@ import { Review } from '@/types/fragrance';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { RatingBar } from '@/components/ui/rating-bar';
+import { Link } from 'react-router-dom';
 
 interface ReviewCardProps {
   review: Review;
@@ -45,7 +46,9 @@ export function ReviewCard({ review, currentUserId, onUpvote }: ReviewCardProps)
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium">{review.userName}</p>
+            <Link to={`/profile/${review.userId}`} className="font-medium hover:text-primary transition-colors">
+              {review.userName}
+            </Link>
             <p className="text-sm text-muted-foreground">{review.createdAt}</p>
           </div>
         </div>

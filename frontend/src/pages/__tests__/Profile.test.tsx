@@ -37,6 +37,14 @@ const mockProfileData = {
     collection: { owned: ["f1", "f2"], sampled: ["f3"], wishlist: [] },
     joinDate: "2025-01-15",
   },
+  collectionFragrances: {
+    owned: [
+      { id: "f1", name: "Aventus", brand: { name: "Creed" } },
+      { id: "f2", name: "Silver Mountain Water", brand: { name: "Creed" } },
+    ],
+    sampled: [{ id: "f3", name: "Jazz Club", brand: { name: "Maison Margiela" } }],
+    wishlist: [],
+  },
   reviews: [
     {
       id: "r1",
@@ -161,6 +169,15 @@ describe("Profile page – own profile", () => {
     await waitFor(() => {
       expect(screen.getByText("Aventus")).toBeInTheDocument();
       expect(screen.getByText("Amazing scent!")).toBeInTheDocument();
+    });
+  });
+
+  it("shows collection tab for viewing user collections", async () => {
+    mockApiGet.mockResolvedValueOnce(mockProfileData);
+    renderOwnProfile();
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Collection" })).toBeInTheDocument();
     });
   });
 

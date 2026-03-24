@@ -43,8 +43,19 @@ interface DiscussionSummary {
   createdAt: string;
 }
 
+interface CollectionFragranceSummary {
+  id: string;
+  name: string;
+  brand: { name: string };
+}
+
 interface ProfileData {
   user: UserProfile;
+  collectionFragrances?: {
+    owned: CollectionFragranceSummary[];
+    sampled: CollectionFragranceSummary[];
+    wishlist: CollectionFragranceSummary[];
+  };
   reviews: ReviewSummary[];
   reviewCount: number;
   discussions: DiscussionSummary[];
@@ -179,11 +190,26 @@ export default function Profile() {
 
   const { user, reviews, reviewCount, discussions, discussionCount } = profile;
   const collection = user.collection || { owned: [], sampled: [], wishlist: [] };
-  const preferences = user.preferences || {
-    favoriteNotes: [],
-    avoidedNotes: [],
-    favoriteConcentrations: [],
-    favoriteOccasions: [],
+  const collectionFragrances = profile.collectionFragrances || { owned: [], sampled: [], wishlist: [] };
+
+  const rawPreferences = (user.preferences ?? {}) as Record<string, unknown>;
+  const preferences = {
+    favoriteNotes: Array.isArray(rawPreferences.favoriteNotes)
+      ? (rawPreferences.favoriteNotes as string[])
+      : Array.isArray(rawPreferences.likedNotes)
+        ? (rawPreferences.likedNotes as string[])
+        : [],
+    avoidedNotes: Array.isArray(rawPreferences.avoidedNotes)
+      ? (rawPreferences.avoidedNotes as string[])
+      : [],
+    favoriteConcentrations: Array.isArray(rawPreferences.favoriteConcentrations)
+      ? (rawPreferences.favoriteConcentrations as string[])
+      : Array.isArray(rawPreferences.preferredConcentrations)
+        ? (rawPreferences.preferredConcentrations as string[])
+        : [],
+    favoriteOccasions: Array.isArray(rawPreferences.favoriteOccasions)
+      ? (rawPreferences.favoriteOccasions as string[])
+      : [],
   };
 
   const initial = user.username?.charAt(0)?.toUpperCase() || '?';
@@ -326,6 +352,10 @@ export default function Profile() {
         {/* Activity tabs */}
         <Tabs defaultValue="reviews" className="w-full">
           <TabsList className="mb-6">
+            <TabsTrigger value="collection" className="gap-1.5">
+              <Heart className="h-3.5 w-3.5" />
+              Collection
+            </TabsTrigger>
             <TabsTrigger value="reviews" className="gap-1.5">
               <PenLine className="h-3.5 w-3.5" />
               Reviews ({reviewCount})
@@ -335,6 +365,44 @@ export default function Profile() {
               Discussions ({discussionCount})
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="collection" className="space-y-5">
+            {(
+              [
+                { key: 'owned', label: 'Owned' },
+                { key: 'sampled', label: 'Sampled' },
+                { key: 'wishlist', label: 'Wishlist' },
+              ] as const
+            ).map(({ key, label }) => (
+              <section key={key} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">{label}</h3>
+                  <span className="text-xs text-muted-foreground">
+                    {collectionFragrances[key].length}
+                  </span>
+                </div>
+
+                {collectionFragrances[key].length === 0 ? (
+                  <div className="rounded-lg border border-border/50 p-4 text-sm text-muted-foreground">
+                    No fragrances yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {collectionFragrances[key].map((fragrance) => (
+                      <Link
+                        key={fragrance.id}
+                        to={`/fragrance/${fragrance.id}`}
+                        className="rounded-lg border border-border/60 bg-card p-4 hover:border-primary/30 transition-colors"
+                      >
+                        <p className="font-medium">{fragrance.name}</p>
+                        <p className="text-sm text-muted-foreground">{fragrance.brand.name}</p>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </section>
+            ))}
+          </TabsContent>
 
           <TabsContent value="reviews" className="space-y-4">
             {reviews.length === 0 ? (

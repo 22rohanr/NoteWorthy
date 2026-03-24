@@ -23,6 +23,16 @@ _review_service = ReviewService()
 _discussion_service = DiscussionService()
 _fragrance_service = FragranceService()
 
+def _fragrance_summary(fid: str) -> dict | None:
+    frag = _fragrance_service.get_by_id(fid)
+    if not frag:
+        return None
+    return {
+        "id": frag["id"],
+        "name": frag.get("name", ""),
+        "brand": {"name": frag.get("brand", {}).get("name", "")},
+    }
+
 
 def _get_uid_from_token() -> tuple[str | None, tuple | None]:
     """Extract and verify the Firebase UID from the Authorization header."""
@@ -163,24 +173,35 @@ def get_profile(user_id: str):
     frag_ids = {r.get("fragranceId", "") for r in reviews if r.get("fragranceId")}
     frag_map: dict[str, dict] = {}
     for fid in frag_ids:
-        frag = _fragrance_service.get_by_id(fid)
-        if frag:
-            frag_map[fid] = {
-                "id": frag["id"],
-                "name": frag.get("name", ""),
-                "brand": {"name": frag.get("brand", {}).get("name", "")},
-            }
+        summary = _fragrance_summary(fid)
+        if summary:
+            frag_map[fid] = summary
     enriched_reviews = [
         {**r, "fragrance": frag_map.get(r.get("fragranceId", ""))}
         for r in reviews
     ]
     enriched_reviews.sort(key=lambda r: r.get("createdAt", ""), reverse=True)
 
+    # Resolve the user's collection IDs into fragrance summaries
+    raw_collection = user.get("collection") or {"owned": [], "sampled": [], "wishlist": []}
+    collection_with_fragrances = {}
+    for tab in ("owned", "sampled", "wishlist"):
+        items: list[dict] = []
+        for fid in raw_collection.get(tab, []):
+            summary = _fragrance_summary(fid)
+            if summary:
+                items.append(summary)
+        collection_with_fragrances[tab] = items
+
     # Activity: discussions
-    discussions = _discussion_service.get_by_user(user_id)
+    try:
+        discussions = _discussion_service.get_by_user(user_id)
+    except Exception:
+        discussions = []
 
     return jsonify({
         "user": user,
+        "collectionFragrances": collection_with_fragrances,
         "reviews": enriched_reviews[:10],
         "reviewCount": len(reviews),
         "discussions": discussions[:10],

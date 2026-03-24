@@ -58,6 +58,7 @@ const mockUseAuth = vi.fn();
 vi.mock("@/hooks/use-api", () => ({
   useDiscussions: () => mockUseDiscussions(),
   useCreateDiscussion: () => mockUseCreateDiscussion(),
+  useTrending: () => ({ notes: [], brands: [], isLoading: false, error: null }),
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({

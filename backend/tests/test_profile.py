@@ -57,6 +57,7 @@ def test_get_profile_returns_user_and_activity(
     assert data["reviewCount"] == 1
     assert data["discussionCount"] == 1
     assert data["reviews"][0]["fragrance"]["name"] == "Aventus"
+    assert data["collectionFragrances"]["owned"][0]["name"] == "Aventus"
 
 
 @patch("routes.auth._discussion_service")

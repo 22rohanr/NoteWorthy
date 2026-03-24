@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 
 const concentrations = ['EDP', 'EDT', 'Parfum', 'EDC', 'Cologne'] as const;
 const genders = ['Unisex', 'Masculine', 'Feminine'] as const;
+const normalizeNoteName = (name: string) => name.trim().toLowerCase();
 
 export default function Discover() {
   const { fragrances, brands, notes, isLoading, isMock } = useFragrances();
@@ -54,15 +55,26 @@ export default function Discover() {
     return priceRange;
   }, [priceStats, priceRange]);
 
+  const uniqueNotes = useMemo(() => {
+    const deduped = new Map<string, (typeof notes)[number]>();
+    for (const note of notes) {
+      const key = normalizeNoteName(note.name);
+      if (!deduped.has(key)) {
+        deduped.set(key, note);
+      }
+    }
+    return Array.from(deduped.values());
+  }, [notes]);
+
   // Sort notes so selected ones appear first, then limit when collapsed
   const visibleNotes = useMemo(() => {
-    if (notesExpanded) return notes;
+    if (notesExpanded) return uniqueNotes;
 
-    const selected = notes.filter((n) => selectedNotes.includes(n.id));
-    const unselected = notes.filter((n) => !selectedNotes.includes(n.id));
+    const selected = uniqueNotes.filter((n) => selectedNotes.includes(normalizeNoteName(n.name)));
+    const unselected = uniqueNotes.filter((n) => !selectedNotes.includes(normalizeNoteName(n.name)));
     const slotsLeft = Math.max(0, COLLAPSED_NOTE_LIMIT - selected.length);
     return [...selected, ...unselected.slice(0, slotsLeft)];
-  }, [notes, selectedNotes, notesExpanded]);
+  }, [uniqueNotes, selectedNotes, notesExpanded]);
 
   // Seed filters from URL query params (e.g. ?brand=Chanel&note=Bergamot)
   useEffect(() => {
@@ -89,12 +101,12 @@ export default function Discover() {
       }
     }
 
-    if (noteParam && notes.length > 0) {
-      const match = notes.find(
-        (n) => n.name.toLowerCase() === noteParam.toLowerCase()
+    if (noteParam && uniqueNotes.length > 0) {
+      const match = uniqueNotes.find(
+        (n) => normalizeNoteName(n.name) === normalizeNoteName(noteParam)
       );
       if (match) {
-        setSelectedNotes([match.id]);
+        setSelectedNotes([normalizeNoteName(match.name)]);
         setShowFilters(true);
         paramsConsumed = true;
       }
@@ -103,13 +115,14 @@ export default function Discover() {
     if (paramsConsumed) {
       setSearchParams({}, { replace: true });
     }
-  }, [isLoading, brands, notes]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoading, brands, uniqueNotes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggleNote = (noteId: string) => {
+  const toggleNote = (noteName: string) => {
+    const noteKey = normalizeNoteName(noteName);
     setSelectedNotes((prev) =>
-      prev.includes(noteId)
-        ? prev.filter((id) => id !== noteId)
-        : [...prev, noteId]
+      prev.includes(noteKey)
+        ? prev.filter((id) => id !== noteKey)
+        : [...prev, noteKey]
     );
   };
 
@@ -132,10 +145,10 @@ export default function Discover() {
       if (selectedConcentration !== 'all' && f.concentration !== selectedConcentration) return false;
       if (selectedGender !== 'all' && f.gender !== selectedGender) return false;
       if (selectedNotes.length > 0) {
-        const allNotes = [...f.notes.top, ...f.notes.middle, ...f.notes.base];
-        const hasNote = selectedNotes.some((noteId) =>
-          allNotes.some((n) => n.id === noteId)
+        const allNoteNames = [...f.notes.top, ...f.notes.middle, ...f.notes.base].map((n) =>
+          normalizeNoteName(n.name)
         );
+        const hasNote = selectedNotes.some((noteName) => allNoteNames.includes(noteName));
         if (!hasNote) return false;
       }
       if (priceStats && effectivePriceRange) {
@@ -329,14 +342,14 @@ export default function Discover() {
                 {visibleNotes.map((note) => (
                   <button
                     key={note.id}
-                    onClick={() => toggleNote(note.id)}
-                    className={`transition-all ${selectedNotes.includes(note.id) ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+                    onClick={() => toggleNote(note.name)}
+                    className={`transition-all ${selectedNotes.includes(normalizeNoteName(note.name)) ? 'ring-2 ring-primary ring-offset-1' : ''}`}
                   >
                     <NoteBadge note={note} size="sm" />
                   </button>
                 ))}
               </div>
-              {notes.length > COLLAPSED_NOTE_LIMIT && (
+              {uniqueNotes.length > COLLAPSED_NOTE_LIMIT && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -350,7 +363,7 @@ export default function Discover() {
                     </>
                   ) : (
                     <>
-                      Show all {notes.length} notes
+                      Show all {uniqueNotes.length} notes
                       <ChevronDown className="h-3 w-3" />
                     </>
                   )}
