@@ -63,3 +63,13 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(collection_bp,    url_prefix="/api/collection")
     app.register_blueprint(discussions_bp,   url_prefix="/api/discussions")
     app.register_blueprint(search_bp,        url_prefix="/api/search")
+
+app = create_app()
+
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "https://your-frontend-project.vercel.app"
+        ]
+    }
+})
