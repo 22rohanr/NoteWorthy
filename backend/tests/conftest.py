@@ -61,8 +61,7 @@ _patch_firebase_modules()
 def mock_db():
     """Provide a MagicMock that replaces the Firestore client everywhere."""
     db = MagicMock()
-    with patch("database.get_db", return_value=db), \
-         patch("database.db", db):
+    with patch("database.get_db", return_value=db):
         yield db
 
 
