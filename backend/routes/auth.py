@@ -196,7 +196,9 @@ def get_profile(user_id: str):
     # Activity: discussions
     try:
         discussions = _discussion_service.get_by_user(user_id)
-    except Exception:
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("Failed to fetch discussions for %s: %s", user_id, exc)
         discussions = []
 
     return jsonify({

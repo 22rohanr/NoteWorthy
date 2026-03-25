@@ -97,10 +97,11 @@ class DiscussionService:
         docs = (
             self._db.collection(self.COLLECTION)
             .where("authorId", "==", user_id)
-            .order_by("createdAt", direction="DESCENDING")
             .stream()
         )
-        return [self._doc_to_dict(doc) for doc in docs]
+        results = [self._doc_to_dict(doc) for doc in docs]
+        results.sort(key=lambda d: d.get("createdAt", ""), reverse=True)
+        return results
 
     # ── Write ─────────────────────────────────────────────────────────
 
