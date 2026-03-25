@@ -4,6 +4,8 @@ from unittest.mock import patch
 import json
 
 
+_EMPTY_COLLECTION = {"owned": [], "sampled": [], "wishlist": []}
+
 _MOCK_USER = {
     "id": "test-uid",
     "username": "Alice",
@@ -68,7 +70,11 @@ def test_get_profile_hides_email_for_non_owner(
     mock_user_svc, mock_frag_svc, mock_review_svc, mock_disc_svc, client
 ):
     """Email is hidden when the requester is not the profile owner."""
-    other_user = {**_user_copy(), "id": "other-uid"}
+    other_user = {
+        **_user_copy(),
+        "id": "other-uid",
+        "collection": _EMPTY_COLLECTION,
+    }
     mock_user_svc.get_by_id.return_value = other_user
     mock_review_svc.get_by_user.return_value = []
     mock_disc_svc.get_by_user.return_value = []
@@ -87,7 +93,9 @@ def test_get_profile_shows_email_for_owner(
     mock_user_svc, mock_frag_svc, mock_review_svc, mock_disc_svc, client
 ):
     """Email is included when the requester owns the profile."""
-    mock_user_svc.get_by_id.return_value = _user_copy()
+    owner = _user_copy()
+    owner["collection"] = _EMPTY_COLLECTION
+    mock_user_svc.get_by_id.return_value = owner
     mock_review_svc.get_by_user.return_value = []
     mock_disc_svc.get_by_user.return_value = []
 
