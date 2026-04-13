@@ -58,6 +58,16 @@ class UserService:
             "wishlist": [],
         }
 
+    @staticmethod
+    def _default_social() -> dict:
+        return {
+            "followers": [],
+            "following": [],
+            "followRequests": [],
+            "followingRequests": [],
+            "isPrivate": False,
+        }
+
     def _doc_to_dict(self, doc) -> dict:
         """Convert a Firestore DocumentSnapshot to a frontend-shaped dict."""
         data = doc.to_dict()
@@ -70,6 +80,11 @@ class UserService:
             "bio": data.get("bio", ""),
             "preferences": data.get("preferences") or self._default_preferences(),
             "collection": data.get("collection") or self._default_collection(),
+            "followers": data.get("followers") or [],
+            "following": data.get("following") or [],
+            "followRequests": data.get("followRequests") or [],
+            "followingRequests": data.get("followingRequests") or [],
+            "isPrivate": bool(data.get("isPrivate", False)),
             "createdAt": created,
             "joinDate": created,
         }
@@ -109,6 +124,11 @@ class UserService:
             "bio": data.get("bio", ""),
             "preferences": data.get("preferences", self._default_preferences()),
             "collection": data.get("collection", self._default_collection()),
+            "followers": data.get("followers", self._default_social()["followers"]),
+            "following": data.get("following", self._default_social()["following"]),
+            "followRequests": data.get("followRequests", self._default_social()["followRequests"]),
+            "followingRequests": data.get("followingRequests", self._default_social()["followingRequests"]),
+            "isPrivate": bool(data.get("isPrivate", self._default_social()["isPrivate"])),
             "createdAt": data.get(
                 "createdAt",
                 datetime.now(timezone.utc).date().isoformat(),
@@ -143,7 +163,7 @@ class UserService:
         Supports top-level fields as well as nested ``preferences`` and
         ``collection`` sub-objects.
         """
-        allowed_top = {"username", "email", "avatar", "bio", "createdAt"}
+        allowed_top = {"username", "email", "avatar", "bio", "createdAt", "isPrivate"}
         allowed_nested = {"preferences", "collection"}
 
         update_data: dict = {}
@@ -189,4 +209,68 @@ class UserService:
             raise ValueError(f"Invalid collection tab: {tab!r}")
         self._db.collection(self.COLLECTION).document(user_id).update(
             {f"collection.{tab}": ArrayRemove([fragrance_id])}
+        )
+
+    # ── Social helpers ───────────────────────────────────────────────
+    def follow_user(self, follower_id: str, target_id: str) -> None:
+        if follower_id == target_id:
+            raise ValueError("You cannot follow yourself")
+        target_user = self.get_by_id(target_id)
+        if not target_user:
+            raise ValueError("Target user not found")
+        if target_user.get("isPrivate"):
+            self._db.collection(self.COLLECTION).document(follower_id).update(
+                {"followingRequests": ArrayUnion([target_id])}
+            )
+            self._db.collection(self.COLLECTION).document(target_id).update(
+                {"followRequests": ArrayUnion([follower_id])}
+            )
+            return
+        self._db.collection(self.COLLECTION).document(follower_id).update(
+            {"following": ArrayUnion([target_id])}
+        )
+        self._db.collection(self.COLLECTION).document(target_id).update(
+            {"followers": ArrayUnion([follower_id])}
+        )
+
+    def unfollow_user(self, follower_id: str, target_id: str) -> None:
+        if follower_id == target_id:
+            raise ValueError("You cannot unfollow yourself")
+        self._db.collection(self.COLLECTION).document(follower_id).update(
+            {
+                "following": ArrayRemove([target_id]),
+                "followingRequests": ArrayRemove([target_id]),
+            }
+        )
+        self._db.collection(self.COLLECTION).document(target_id).update(
+            {
+                "followers": ArrayRemove([follower_id]),
+                "followRequests": ArrayRemove([follower_id]),
+            }
+        )
+
+    def accept_follow_request(self, target_id: str, requester_id: str) -> None:
+        if requester_id == target_id:
+            raise ValueError("Invalid follow request")
+        self._db.collection(self.COLLECTION).document(target_id).update(
+            {
+                "followRequests": ArrayRemove([requester_id]),
+                "followers": ArrayUnion([requester_id]),
+            }
+        )
+        self._db.collection(self.COLLECTION).document(requester_id).update(
+            {
+                "followingRequests": ArrayRemove([target_id]),
+                "following": ArrayUnion([target_id]),
+            }
+        )
+
+    def decline_follow_request(self, target_id: str, requester_id: str) -> None:
+        if requester_id == target_id:
+            raise ValueError("Invalid follow request")
+        self._db.collection(self.COLLECTION).document(target_id).update(
+            {"followRequests": ArrayRemove([requester_id])}
+        )
+        self._db.collection(self.COLLECTION).document(requester_id).update(
+            {"followingRequests": ArrayRemove([target_id])}
         )

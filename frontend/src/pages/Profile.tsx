@@ -5,24 +5,29 @@ import {
   PenLine,
   MessageSquare,
   Heart,
+  UserPlus,
+  UserCheck,
   FlaskConical,
   Bookmark,
   Calendar,
   Star,
   Save,
   X,
+  Lock,
+  Globe,
 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { useAuth, type UserProfile } from '@/contexts/AuthContext';
-import { apiGet, apiPatch } from '@/lib/api';
+import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface ReviewSummary {
@@ -56,6 +61,18 @@ interface ProfileData {
     sampled: CollectionFragranceSummary[];
     wishlist: CollectionFragranceSummary[];
   };
+  followStats?: {
+    followers: number;
+    following: number;
+  };
+  followUsers?: {
+    followers: { id: string; username: string; avatar?: string }[];
+    following: { id: string; username: string; avatar?: string }[];
+    requests?: { id: string; username: string; avatar?: string }[];
+  };
+  canViewActivity?: boolean;
+  followRelationship?: 'self' | 'following' | 'requested' | 'not_following';
+  isFollowing?: boolean;
   reviews: ReviewSummary[];
   reviewCount: number;
   discussions: DiscussionSummary[];
@@ -73,6 +90,10 @@ export default function Profile() {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [socialModal, setSocialModal] = useState<'followers' | 'following' | null>(null);
+  const [rowFollowUserId, setRowFollowUserId] = useState<string | null>(null);
+  const [requestActionUserId, setRequestActionUserId] = useState<string | null>(null);
 
   const [editUsername, setEditUsername] = useState('');
   const [editBio, setEditBio] = useState('');
@@ -135,6 +156,74 @@ export default function Profile() {
     }
   };
 
+  const toggleFollow = async () => {
+    if (!idToken || !userId) return;
+    setIsFollowLoading(true);
+    try {
+      if (profile?.followRelationship === 'following' || profile?.followRelationship === 'requested') {
+        await apiDelete(`/auth/follow/${userId}`, idToken);
+        toast.success('Unfollowed user');
+      } else {
+        await apiPost(`/auth/follow/${userId}`, {}, idToken);
+        toast.success(profile?.user.isPrivate ? 'Follow request sent' : 'Now following');
+      }
+      await fetchProfile();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update follow status';
+      toast.error(message);
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
+
+  const toggleFollowUser = async (targetUserId: string, currentlyFollowing: boolean) => {
+    if (!idToken || targetUserId === firebaseUser?.uid) return;
+    setRowFollowUserId(targetUserId);
+    try {
+      if (currentlyFollowing) {
+        await apiDelete(`/auth/follow/${targetUserId}`, idToken);
+      } else {
+        await apiPost(`/auth/follow/${targetUserId}`, {}, idToken);
+      }
+      await Promise.all([fetchProfile(), refreshProfile()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update follow status';
+      toast.error(message);
+    } finally {
+      setRowFollowUserId(null);
+    }
+  };
+
+  const togglePrivacyMode = async () => {
+    if (!idToken || !isOwnProfile || !profile) return;
+    try {
+      await apiPatch('/auth/profile', { isPrivate: !profile.user.isPrivate }, idToken);
+      await Promise.all([fetchProfile(), refreshProfile()]);
+      toast.success(!profile.user.isPrivate ? 'Account set to private' : 'Account set to public');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update privacy';
+      toast.error(message);
+    }
+  };
+
+  const respondToFollowRequest = async (requesterId: string, accept: boolean) => {
+    if (!idToken) return;
+    setRequestActionUserId(requesterId);
+    try {
+      if (accept) {
+        await apiPost(`/auth/follow/requests/${requesterId}/accept`, {}, idToken);
+      } else {
+        await apiDelete(`/auth/follow/requests/${requesterId}`, idToken);
+      }
+      await Promise.all([fetchProfile(), refreshProfile()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to respond to request';
+      toast.error(message);
+    } finally {
+      setRequestActionUserId(null);
+    }
+  };
+
   if (!viewingUserId) {
     return (
       <div className="min-h-screen bg-background">
@@ -191,6 +280,17 @@ export default function Profile() {
   const { user, reviews, reviewCount, discussions, discussionCount } = profile;
   const collection = user.collection || { owned: [], sampled: [], wishlist: [] };
   const collectionFragrances = profile.collectionFragrances || { owned: [], sampled: [], wishlist: [] };
+  const followStats = profile.followStats || { followers: 0, following: 0 };
+  const followUsers = profile.followUsers || { followers: [], following: [], requests: [] };
+  const followRequests = followUsers.requests || [];
+  const canViewActivity = profile.canViewActivity ?? true;
+  const followRelationship = profile.followRelationship ?? (isOwnProfile ? 'self' : 'not_following');
+  const currentUserFollowing = new Set(
+    ((isOwnProfile ? profile.user.following : userProfile?.following) ?? []) as string[],
+  );
+  const currentUserRequested = new Set(
+    ((isOwnProfile ? profile.user.followingRequests : userProfile?.followingRequests) ?? []) as string[],
+  );
 
   const rawPreferences = (user.preferences ?? {}) as Record<string, unknown>;
   const preferences = {
@@ -261,10 +361,69 @@ export default function Profile() {
                   <h1 className="font-display text-2xl md:text-3xl font-medium truncate">
                     {user.username}
                   </h1>
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => setSocialModal('followers')}
+                      className="hover:text-foreground transition-colors"
+                    >
+                      <span className="font-semibold text-foreground">{followStats.followers}</span>{' '}
+                      followers
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSocialModal('following')}
+                      className="hover:text-foreground transition-colors"
+                    >
+                      <span className="font-semibold text-foreground">{followStats.following}</span>{' '}
+                      following
+                    </button>
+                  </div>
                   {isOwnProfile && (
                     <Button variant="ghost" size="sm" onClick={startEditing} className="gap-1.5 text-muted-foreground">
                       <PenLine className="h-3.5 w-3.5" />
                       Edit
+                    </Button>
+                  )}
+                  {isOwnProfile && (
+                    <Button variant="outline" size="sm" onClick={togglePrivacyMode} className="gap-1.5">
+                      {profile.user.isPrivate ? (
+                        <>
+                          <Globe className="h-3.5 w-3.5" />
+                          Switch to Public
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="h-3.5 w-3.5" />
+                          Switch to Private
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {!isOwnProfile && firebaseUser && (
+                    <Button
+                      size="sm"
+                      variant={followRelationship === 'following' ? 'secondary' : 'default'}
+                      onClick={toggleFollow}
+                      disabled={isFollowLoading}
+                      className="gap-1.5"
+                    >
+                      {followRelationship === 'following' ? (
+                        <>
+                          <UserCheck className="h-3.5 w-3.5" />
+                          Following
+                        </>
+                      ) : followRelationship === 'requested' ? (
+                        <>
+                          <UserCheck className="h-3.5 w-3.5" />
+                          Requested
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="h-3.5 w-3.5" />
+                          Follow
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>
@@ -307,9 +466,49 @@ export default function Profile() {
             <p className="text-xs text-muted-foreground mt-0.5">Wishlist</p>
           </Link>
         </div>
+        {isOwnProfile && profile.user.isPrivate && (
+          <div className="mb-8 rounded-lg border border-border/50 bg-card p-4 space-y-3">
+            <h3 className="font-medium">Follow requests</h3>
+            {followRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No pending requests.</p>
+            ) : (
+              followRequests.map((req) => (
+                <div key={req.id} className="flex items-center justify-between rounded-md border border-border/50 p-3">
+                  <Link to={`/profile/${req.id}`} className="font-medium hover:text-primary transition-colors">
+                    {req.username}
+                  </Link>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => respondToFollowRequest(req.id, true)}
+                      disabled={requestActionUserId === req.id}
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => respondToFollowRequest(req.id, false)}
+                      disabled={requestActionUserId === req.id}
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
+        {!isOwnProfile && profile.user.isPrivate && !canViewActivity && (
+          <div className="mb-8 rounded-lg border border-border/50 bg-card p-8 text-center">
+            <Lock className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+            <p className="font-medium mb-1">This account is private</p>
+            <p className="text-sm text-muted-foreground">Follow to see reviews, discussions, and collection activity.</p>
+          </div>
+        )}
         {/* Preferences */}
-        {(preferences.favoriteNotes.length > 0 ||
+        {canViewActivity && (preferences.favoriteNotes.length > 0 ||
           preferences.avoidedNotes.length > 0 ||
           preferences.favoriteOccasions.length > 0) && (
           <div className="mb-8 p-5 bg-card rounded-lg border border-border/50 space-y-4">
@@ -350,6 +549,7 @@ export default function Profile() {
         )}
 
         {/* Activity tabs */}
+        {canViewActivity && (
         <Tabs defaultValue="reviews" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="collection" className="gap-1.5">
@@ -494,8 +694,59 @@ export default function Profile() {
               ))
             )}
           </TabsContent>
+
         </Tabs>
+        )}
       </div>
+      <Dialog open={socialModal !== null} onOpenChange={(open) => !open && setSocialModal(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {socialModal === 'following' ? 'Following' : 'Followers'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-80 overflow-y-auto space-y-2">
+            {(socialModal === 'following' ? followUsers.following : followUsers.followers).length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">
+                {socialModal === 'following' ? 'Not following anyone yet.' : 'No followers yet.'}
+              </p>
+            ) : (
+              (socialModal === 'following' ? followUsers.following : followUsers.followers).map((person) => (
+                <div
+                  key={person.id}
+                  className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2"
+                >
+                  <Link
+                    to={`/profile/${person.id}`}
+                    onClick={() => setSocialModal(null)}
+                    className="flex min-w-0 items-center gap-3 hover:text-primary transition-colors"
+                  >
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={person.avatar} />
+                      <AvatarFallback>
+                        {person.username?.charAt(0)?.toUpperCase() || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="font-medium truncate">{person.username}</span>
+                  </Link>
+                  {firebaseUser && person.id !== firebaseUser.uid && (
+                    <Button
+                      size="sm"
+                      variant={(currentUserFollowing.has(person.id) || currentUserRequested.has(person.id)) ? 'secondary' : 'outline'}
+                      disabled={rowFollowUserId === person.id}
+                      onClick={() =>
+                        toggleFollowUser(person.id, currentUserFollowing.has(person.id) || currentUserRequested.has(person.id))
+                      }
+                    >
+                      {currentUserFollowing.has(person.id) ? 'Following' : currentUserRequested.has(person.id) ? 'Requested' : 'Follow'}
+                    </Button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

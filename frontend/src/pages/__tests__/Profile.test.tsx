@@ -132,9 +132,9 @@ describe("Profile page – own profile", () => {
     renderOwnProfile();
 
     await waitFor(() => {
-      expect(screen.getByText("2")).toBeInTheDocument(); // owned
-      expect(screen.getByText("1")).toBeInTheDocument(); // sampled
-      expect(screen.getByText("0")).toBeInTheDocument(); // wishlist
+      expect(screen.getAllByText("2").length).toBeGreaterThan(0); // owned
+      expect(screen.getAllByText("1").length).toBeGreaterThan(0); // sampled
+      expect(screen.getAllByText("0").length).toBeGreaterThan(0); // wishlist/follow counts
     });
     expect(screen.getByText("Owned")).toBeInTheDocument();
     expect(screen.getByText("Sampled")).toBeInTheDocument();

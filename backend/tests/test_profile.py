@@ -193,3 +193,35 @@ def test_patch_profile_updates_preferences(mock_user_svc, client):
     call_args = mock_user_svc.update.call_args[0][1]
     assert "preferences" in call_args
     assert call_args["preferences"]["favoriteNotes"] == ["Rose", "Oud"]
+
+
+@patch("routes.auth._user_service")
+def test_follow_user_success(mock_user_svc, client):
+    mock_user_svc.get_by_id.side_effect = [
+        {"id": "test-uid"},
+        {"id": "target-uid"},
+    ]
+
+    resp = client.post(
+        "/api/auth/follow/target-uid",
+        headers={"Authorization": "Bearer fake-token"},
+    )
+
+    assert resp.status_code == 200
+    mock_user_svc.follow_user.assert_called_once_with("test-uid", "target-uid")
+
+
+@patch("routes.auth._user_service")
+def test_unfollow_user_success(mock_user_svc, client):
+    mock_user_svc.get_by_id.side_effect = [
+        {"id": "test-uid"},
+        {"id": "target-uid"},
+    ]
+
+    resp = client.delete(
+        "/api/auth/follow/target-uid",
+        headers={"Authorization": "Bearer fake-token"},
+    )
+
+    assert resp.status_code == 200
+    mock_user_svc.unfollow_user.assert_called_once_with("test-uid", "target-uid")

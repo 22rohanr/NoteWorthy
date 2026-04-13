@@ -23,6 +23,16 @@ _review_service = ReviewService()
 _discussion_service = DiscussionService()
 _fragrance_service = FragranceService()
 
+def _user_summary(uid: str) -> dict | None:
+    user = _user_service.get_by_id(uid)
+    if not user:
+        return None
+    return {
+        "id": user["id"],
+        "username": user.get("username", ""),
+        "avatar": user.get("avatar"),
+    }
+
 def _fragrance_summary(fid: str) -> dict | None:
     frag = _fragrance_service.get_by_id(fid)
     if not frag:
@@ -153,6 +163,7 @@ def get_profile(user_id: str):
         return jsonify({"error": "User not found"}), 404
 
     # Determine if the caller owns this profile
+    requester_uid = None
     is_owner = False
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
@@ -160,7 +171,8 @@ def get_profile(user_id: str):
             decoded = firebase_auth.verify_id_token(
                 auth_header.split("Bearer ", 1)[1]
             )
-            is_owner = decoded.get("uid") == user_id
+            requester_uid = decoded.get("uid")
+            is_owner = requester_uid == user_id
         except Exception:
             pass
 
@@ -201,14 +213,117 @@ def get_profile(user_id: str):
         logging.getLogger(__name__).warning("Failed to fetch discussions for %s: %s", user_id, exc)
         discussions = []
 
+    follower_ids = user.get("followers") or []
+    following_ids = user.get("following") or []
+    followers = [s for s in (_user_summary(uid) for uid in follower_ids) if s]
+    following = [s for s in (_user_summary(uid) for uid in following_ids) if s]
+    request_ids = user.get("followRequests") or []
+    follow_requests = [s for s in (_user_summary(uid) for uid in request_ids) if s]
+    is_following = bool(requester_uid and requester_uid in follower_ids)
+    is_requested = bool(requester_uid and requester_uid in request_ids)
+    relationship = "not_following"
+    if requester_uid == user_id:
+        relationship = "self"
+    elif is_following:
+        relationship = "following"
+    elif is_requested:
+        relationship = "requested"
+    can_view_activity = bool(
+        is_owner
+        or not user.get("isPrivate", False)
+        or (requester_uid and requester_uid in follower_ids)
+    )
+
     return jsonify({
         "user": user,
         "collectionFragrances": collection_with_fragrances,
-        "reviews": enriched_reviews[:10],
-        "reviewCount": len(reviews),
-        "discussions": discussions[:10],
-        "discussionCount": len(discussions),
+        "followStats": {
+            "followers": len(follower_ids),
+            "following": len(following_ids),
+        },
+        "followUsers": {
+            "followers": followers,
+            "following": following,
+            "requests": follow_requests if is_owner else [],
+        },
+        "canViewActivity": can_view_activity,
+        "followRelationship": relationship,
+        "isFollowing": is_following,
+        "reviews": enriched_reviews[:10] if can_view_activity else [],
+        "reviewCount": len(reviews) if can_view_activity else 0,
+        "discussions": discussions[:10] if can_view_activity else [],
+        "discussionCount": len(discussions) if can_view_activity else 0,
     }), 200
+
+
+@auth_bp.route("/follow/<target_id>", methods=["POST"])
+def follow_user(target_id: str):
+    uid, error = _get_uid_from_token()
+    if error:
+        return error
+
+    if _user_service.get_by_id(uid) is None:
+        return jsonify({"error": "User profile not found"}), 404
+    if _user_service.get_by_id(target_id) is None:
+        return jsonify({"error": "Target user not found"}), 404
+
+    try:
+        _user_service.follow_user(uid, target_id)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    updated_target = _user_service.get_by_id(target_id) or {}
+    is_private = bool(updated_target.get("isPrivate"))
+    return jsonify({"success": True, "status": "requested" if is_private else "following"}), 200
+
+
+@auth_bp.route("/follow/<target_id>", methods=["DELETE"])
+def unfollow_user(target_id: str):
+    uid, error = _get_uid_from_token()
+    if error:
+        return error
+
+    if _user_service.get_by_id(uid) is None:
+        return jsonify({"error": "User profile not found"}), 404
+    if _user_service.get_by_id(target_id) is None:
+        return jsonify({"error": "Target user not found"}), 404
+
+    try:
+        _user_service.unfollow_user(uid, target_id)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"success": True}), 200
+
+
+@auth_bp.route("/follow/requests/<requester_id>/accept", methods=["POST"])
+def accept_follow_request(requester_id: str):
+    uid, error = _get_uid_from_token()
+    if error:
+        return error
+    if _user_service.get_by_id(uid) is None:
+        return jsonify({"error": "User profile not found"}), 404
+    if _user_service.get_by_id(requester_id) is None:
+        return jsonify({"error": "Requester not found"}), 404
+    try:
+        _user_service.accept_follow_request(uid, requester_id)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"success": True}), 200
+
+
+@auth_bp.route("/follow/requests/<requester_id>", methods=["DELETE"])
+def decline_follow_request(requester_id: str):
+    uid, error = _get_uid_from_token()
+    if error:
+        return error
+    if _user_service.get_by_id(uid) is None:
+        return jsonify({"error": "User profile not found"}), 404
+    if _user_service.get_by_id(requester_id) is None:
+        return jsonify({"error": "Requester not found"}), 404
+    try:
+        _user_service.decline_follow_request(uid, requester_id)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"success": True}), 200
 
 
 # ── PATCH /profile ───────────────────────────────────────────────────
@@ -229,7 +344,7 @@ def update_profile():
 
     body = request.get_json(silent=True) or {}
 
-    allowed = {"username", "bio", "avatar", "preferences"}
+    allowed = {"username", "bio", "avatar", "preferences", "isPrivate"}
     update_data = {k: v for k, v in body.items() if k in allowed}
 
     if not update_data:

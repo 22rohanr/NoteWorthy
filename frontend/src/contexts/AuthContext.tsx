@@ -25,6 +25,11 @@ export interface UserProfile {
   email: string;
   avatar: string;
   bio: string;
+  isPrivate?: boolean;
+  followers?: string[];
+  following?: string[];
+  followRequests?: string[];
+  followingRequests?: string[];
   preferences: {
     favoriteNotes: string[];
     avoidedNotes: string[];
