@@ -3,7 +3,7 @@
 seed_database.py – Two-mode data-ingestion script for Firestore.
 
 Usage (run from the backend/ directory):
-    python -m scripts.seed_database --download                 # fetch all 10 brands
+    python -m scripts.seed_database --download                 # fetch all brands in BRANDS
     python -m scripts.seed_database --download --max-calls 1   # safe test run (1 brand)
     python -m scripts.seed_database --upload                   # cache → Firestore
 
@@ -15,7 +15,10 @@ Mode 1 (--download):
 Mode 2 (--upload):
     Reads scripts/fragella_raw_dump.json (no HTTP requests), transforms each
     record to match the Firestore document shapes expected by our service
-    classes, and writes everything in batched commits (≤400 ops per batch).
+    classes, and writes in batched commits (≤400 ops per batch).  Existing
+    brands and notes are reused when the name matches (case-insensitive); new
+    fragrances are skipped if the same brandId + name already exists — nothing
+    is overwritten in place.
 
 CRITICAL: The Fragella free tier has a strict call limit.  The --download
 mode keeps a running call counter and will abort before exceeding --max-calls.
@@ -28,6 +31,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 
@@ -57,19 +61,46 @@ FRAGELLA_BASE_URL = "https://api.fragella.com/api/v1"
 # Cache file lives alongside this script in the scripts/ folder
 CACHE_FILE = _SCRIPT_DIR / "fragella_raw_dump.json"
 
-# 10 popular designer / niche houses – one API call each.
-# Uses 10 of the 20 free-tier calls, leaving 10 in reserve.
+# Designer / niche houses – one Fragella API call each (see --max-calls).
+# Based on the your Fragella API quota (it's 20 but doing 15 for now in case we need to adjust): a full run uses len(BRANDS) calls.
 BRANDS = [
-    "Dior",
-    "Chanel",
-    "Tom Ford",
-    "Creed",
-    "Versace",
-    "YSL",
-    "Le Labo",
-    "Maison Francis Kurkdjian",
-    "Prada",
-    "Guerlain",
+    # "Dior",
+    # "Chanel",
+    # "Tom Ford",
+    # "Creed",
+    # "Versace",
+    # "YSL",
+    # "Le Labo",
+    # "Maison Francis Kurkdjian",
+    # "Prada",
+    # "Guerlain",
+    # "Hermès",
+    # "Maison Margiela",
+    # "Replica",
+    # "Byredo",
+    # "Amouage",
+    # "Diptyque",
+    # "Kilian",
+    # "Valentino",
+    # "Giorgio Armani",
+    # "Givenchy",
+    # "Burberry",
+    # "Jo Malone",
+    "Acqua di Parma",
+    "Montale",
+    "Mancera",
+    "Parfums de Marly",
+    "Initio Parfums Prives",
+    "Xerjoff",
+    "Nishane",
+    "Penhaligon's",
+    "Frederic Malle",
+    "Serge Lutens",
+    "Dolce & Gabbana",
+    "Gucci",
+    "Bvlgari",
+    "Paco Rabanne",
+    "Issey Miyake",
 ]
 
 # ---------------------------------------------------------------------------
@@ -269,7 +300,9 @@ def run_download(max_calls: int) -> None:
             print(f"\n>> Reached --max-calls limit ({max_calls}). Stopping.")
             break
 
-        url = f"{FRAGELLA_BASE_URL}/brands/{brand}?limit=50"
+        # Percent-encode path (spaces, accents, etc.) so e.g. Hermès is valid in URLs.
+        brand_path = quote(brand, safe="")
+        url = f"{FRAGELLA_BASE_URL}/brands/{brand_path}?limit=50"
         print(f"[{call_count + 1}/{max_calls}] GET {url}")
 
         try:
@@ -331,6 +364,10 @@ def run_upload() -> None:
 
     Uses batched writes (≤400 operations per batch) to stay safely under
     the Firestore limit of 500 operations per commit.
+
+    Merges additively: existing brands/notes are matched by name (case-folded)
+    and reused; fragrances already present for the same ``brandId`` + name are
+    skipped. No document IDs are overwritten.
     """
     # ── Load cache ───────────────────────────────────────────────────
     if not CACHE_FILE.exists():
@@ -351,11 +388,10 @@ def run_upload() -> None:
     db = get_db()
 
     # ==================================================================
-    #  PHASE A: Create Brand documents
+    #  PHASE A: Brand documents (reuse existing by name)
     # ==================================================================
-    print("Phase A: Creating brand documents...")
+    print("Phase A: Brand documents...")
 
-    # Extract unique brands from the raw data
     unique_brands: dict[str, dict] = {}  # brand_name → {name, country}
     for item in raw:
         brand_name = item.get("Brand", "").strip()
@@ -366,18 +402,39 @@ def run_upload() -> None:
                 "foundedYear": None,  # not available from the API
             }
 
-    brand_id_map: dict[str, str] = {}  # brand_name → Firestore doc ID
-    _batch_create(db, "brands", list(unique_brands.values()), brand_id_map, key_field="name")
+    existing_brand_by_norm: dict[str, str] = {}
+    for doc in db.collection("brands").stream():
+        data = doc.to_dict() or {}
+        n = str(data.get("name", "")).strip()
+        if n:
+            nk = _norm_key(n)
+            if nk not in existing_brand_by_norm:
+                existing_brand_by_norm[nk] = doc.id
 
-    print(f"  Created {len(brand_id_map)} brands.\n")
+    brand_id_map: dict[str, str] = {}
+    new_brands: list[dict] = []
+    for brand_name, payload in unique_brands.items():
+        existing_id = existing_brand_by_norm.get(_norm_key(brand_name))
+        if existing_id:
+            brand_id_map[brand_name] = existing_id
+        else:
+            new_brands.append(payload)
+
+    if new_brands:
+        _batch_create(db, "brands", new_brands, brand_id_map, key_field="name")
+    else:
+        print("    (No new brand documents; all names matched existing brands.)")
+
+    print(
+        f"  {len(brand_id_map)} brand(s) resolved, "
+        f"{len(new_brands)} new document(s) written.\n"
+    )
 
     # ==================================================================
-    #  PHASE B: Create Note documents
+    #  PHASE B: Note documents (reuse existing by name)
     # ==================================================================
-    print("Phase B: Creating note documents...")
+    print("Phase B: Note documents...")
 
-    # Extract every unique note name from Top / Middle / Base across
-    # all fragrances.
     unique_notes: dict[str, dict] = {}  # note_name → {name, family}
     for item in raw:
         notes_obj = item.get("Notes", {})
@@ -390,33 +447,79 @@ def run_upload() -> None:
                         "family": classify_note_family(note_name),
                     }
 
-    note_id_map: dict[str, str] = {}  # note_name → Firestore doc ID
-    _batch_create(db, "notes", list(unique_notes.values()), note_id_map, key_field="name")
+    existing_note_by_norm: dict[str, str] = {}
+    for doc in db.collection("notes").stream():
+        data = doc.to_dict() or {}
+        n = str(data.get("name", "")).strip()
+        if n:
+            nk = _norm_key(n)
+            if nk not in existing_note_by_norm:
+                existing_note_by_norm[nk] = doc.id
 
-    print(f"  Created {len(note_id_map)} notes.\n")
+    note_id_map: dict[str, str] = {}
+    new_notes: list[dict] = []
+    for note_name, payload in unique_notes.items():
+        existing_id = existing_note_by_norm.get(_norm_key(note_name))
+        if existing_id:
+            note_id_map[note_name] = existing_id
+        else:
+            new_notes.append(payload)
+
+    if new_notes:
+        _batch_create(db, "notes", new_notes, note_id_map, key_field="name")
+    else:
+        print("    (No new note documents; all names matched existing notes.)")
+
+    print(
+        f"  {len(note_id_map)} note(s) resolved, "
+        f"{len(new_notes)} new document(s) written.\n"
+    )
 
     # ==================================================================
-    #  PHASE C: Create Fragrance documents
+    #  PHASE C: Fragrance documents (skip brandId + name duplicates)
     # ==================================================================
-    print("Phase C: Creating fragrance documents...")
+    print("Phase C: Fragrance documents...")
+
+    existing_frag_keys: set[tuple[str, str]] = set()
+    for doc in db.collection("fragrances").stream():
+        data = doc.to_dict() or {}
+        bid = str(data.get("brandId", ""))
+        nm = str(data.get("name", "")).strip()
+        if bid and nm:
+            existing_frag_keys.add((bid, _norm_key(nm)))
 
     fragrance_docs: list[dict] = []
+    skipped_frags = 0
     for item in raw:
         frag_doc = _transform_fragrance(item, brand_id_map, note_id_map)
-        if frag_doc:
-            fragrance_docs.append(frag_doc)
+        if not frag_doc:
+            continue
+        key = (frag_doc["brandId"], _norm_key(frag_doc["name"]))
+        if key in existing_frag_keys:
+            skipped_frags += 1
+            continue
+        existing_frag_keys.add(key)
+        fragrance_docs.append(frag_doc)
 
-    # We don't need a name→id map for fragrances, so pass a throwaway dict
-    _frag_ids: dict[str, str] = {}
-    _batch_create(db, "fragrances", fragrance_docs, _frag_ids, key_field="name")
+    if skipped_frags:
+        print(
+            f"    Skipped {skipped_frags} fragrance(s) "
+            "(same brandId + name as an existing document)."
+        )
 
-    print(f"  Created {len(fragrance_docs)} fragrances.\n")
+    if fragrance_docs:
+        _frag_ids: dict[str, str] = {}
+        _batch_create(db, "fragrances", fragrance_docs, _frag_ids, key_field="name")
+    else:
+        print("    (No new fragrance documents to write.)")
+
+    print(f"  Wrote {len(fragrance_docs)} new fragrance(s).\n")
 
     # ── Summary ──────────────────────────────────────────────────────
     print("=== UPLOAD COMPLETE ===")
-    print(f"  Brands     : {len(brand_id_map)}")
-    print(f"  Notes      : {len(note_id_map)}")
-    print(f"  Fragrances : {len(fragrance_docs)}")
+    print(f"  Brands resolved : {len(brand_id_map)} ({len(new_brands)} new)")
+    print(f"  Notes resolved  : {len(note_id_map)} ({len(new_notes)} new)")
+    print(f"  Fragrances new  : {len(fragrance_docs)}")
 
 
 # ---------------------------------------------------------------------------
@@ -424,6 +527,11 @@ def run_upload() -> None:
 # ---------------------------------------------------------------------------
 
 BATCH_LIMIT = 400  # stay safely under Firestore's 500-op limit
+
+
+def _norm_key(s: str) -> str:
+    """Normalize names when matching cache/API strings to existing Firestore docs."""
+    return s.strip().casefold()
 
 
 def _batch_create(
@@ -557,7 +665,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples (run from backend/):\n"
-            "  python -m scripts.seed_database --download                # fetch all 10 brands\n"
+            "  python -m scripts.seed_database --download                # fetch all brands in BRANDS\n"
             "  python -m scripts.seed_database --download --max-calls 1  # test with 1 brand\n"
             "  python -m scripts.seed_database --upload                  # cache → Firestore\n"
         ),
@@ -578,8 +686,11 @@ def main() -> None:
     parser.add_argument(
         "--max-calls",
         type=int,
-        default=10,
-        help="Maximum number of API calls in download mode (default: 10).",
+        default=len(BRANDS),
+        help=(
+            "Maximum number of API calls in download mode "
+            f"(default: {len(BRANDS)}, i.e. all brands in BRANDS)."
+        ),
     )
 
     args = parser.parse_args()
