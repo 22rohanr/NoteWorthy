@@ -8,6 +8,8 @@ Endpoints:
     POST /register – verify token, create new user
 """
 
+from __future__ import annotations
+
 from flask import Blueprint, jsonify, request
 from firebase_admin import auth as firebase_auth
 
