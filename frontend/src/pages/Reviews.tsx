@@ -39,7 +39,7 @@ export default function Reviews() {
             {review.fragrance && (
               <Link
                 to={`/fragrance/${review.fragrance.id}`}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors ml-1"
               >
                 on {review.fragrance.name} by {review.fragrance.brand.name}
               </Link>
