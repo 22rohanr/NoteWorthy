@@ -60,11 +60,11 @@ class NotificationService:
         docs = (
             self._db.collection(self.COLLECTION)
             .where("recipientId", "==", user_id)
-            .order_by("createdAt", direction="DESCENDING")
-            .limit(limit)
             .stream()
         )
-        return [self._doc_to_dict(doc) for doc in docs]
+        results = [self._doc_to_dict(doc) for doc in docs]
+        results.sort(key=lambda n: n.get("createdAt", ""), reverse=True)
+        return results[:limit]
 
     def count_unread(self, user_id: str) -> int:
         """Return the number of unread notifications for a user."""

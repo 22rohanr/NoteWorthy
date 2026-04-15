@@ -45,7 +45,10 @@ def list_notifications():
         return error
 
     limit = request.args.get("limit", 50, type=int)
-    notifications = _notification_service.get_for_user(uid, limit=limit)
+    try:
+        notifications = _notification_service.get_for_user(uid, limit=limit)
+    except Exception:
+        notifications = []
     return jsonify({"notifications": notifications}), 200
 
 
