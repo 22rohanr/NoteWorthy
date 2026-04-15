@@ -159,9 +159,10 @@ class TestGetDiscussion:
 # ── POST /api/discussions/<id>/replies ───────────────────────────────
 
 class TestAddReply:
+    @patch("routes.discussions._notification_service")
     @patch("routes.discussions._discussion_service")
     @patch("routes.discussions._user_service")
-    def test_adds_reply(self, mock_user_svc, mock_disc_svc, client):
+    def test_adds_reply(self, mock_user_svc, mock_disc_svc, mock_notif_svc, client):
         mock_user_svc.get_by_id.return_value = SAMPLE_USER
         mock_disc_svc.get_by_id.return_value = SAMPLE_DISCUSSION
         mock_disc_svc.add_reply.return_value = SAMPLE_REPLY
@@ -173,6 +174,7 @@ class TestAddReply:
         )
         assert resp.status_code == 201
         assert resp.get_json()["reply"]["body"] == "Try Acqua di Gio!"
+        mock_notif_svc.create.assert_called_once()
 
     def test_requires_auth(self, client):
         resp = client.post(

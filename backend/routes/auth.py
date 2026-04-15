@@ -17,6 +17,7 @@ from services.user_service import UserService
 from services.review_service import ReviewService
 from services.discussion_service import DiscussionService
 from services.fragrance_service import FragranceService
+from services.notification_service import NotificationService
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -24,6 +25,7 @@ _user_service = UserService()
 _review_service = ReviewService()
 _discussion_service = DiscussionService()
 _fragrance_service = FragranceService()
+_notification_service = NotificationService()
 
 def _user_summary(uid: str) -> dict | None:
     user = _user_service.get_by_id(uid)
@@ -275,6 +277,24 @@ def follow_user(target_id: str):
         return jsonify({"error": str(exc)}), 400
     updated_target = _user_service.get_by_id(target_id) or {}
     is_private = bool(updated_target.get("isPrivate"))
+
+    actor = _user_service.get_by_id(uid) or {}
+    actor_name = actor.get("username", "Someone")
+    if is_private:
+        _notification_service.create(
+            recipient_id=target_id,
+            actor_id=uid,
+            notification_type="follow_request",
+            message=f"{actor_name} requested to follow you",
+        )
+    else:
+        _notification_service.create(
+            recipient_id=target_id,
+            actor_id=uid,
+            notification_type="follow",
+            message=f"{actor_name} started following you",
+        )
+
     return jsonify({"success": True, "status": "requested" if is_private else "following"}), 200
 
 
@@ -309,6 +329,16 @@ def accept_follow_request(requester_id: str):
         _user_service.accept_follow_request(uid, requester_id)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
+
+    actor = _user_service.get_by_id(uid) or {}
+    actor_name = actor.get("username", "Someone")
+    _notification_service.create(
+        recipient_id=requester_id,
+        actor_id=uid,
+        notification_type="follow_accepted",
+        message=f"{actor_name} accepted your follow request",
+    )
+
     return jsonify({"success": True}), 200
 
 

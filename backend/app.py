@@ -54,6 +54,7 @@ def _register_blueprints(app: Flask) -> None:
     from routes.collection import collection_bp
     from routes.discussions import discussions_bp
     from routes.search import search_bp
+    from routes.notifications import notifications_bp
 
     app.register_blueprint(analytics_bp,     url_prefix="/api/analytics")
     app.register_blueprint(auth_bp,          url_prefix="/api/auth")
@@ -63,6 +64,7 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(collection_bp,    url_prefix="/api/collection")
     app.register_blueprint(discussions_bp,   url_prefix="/api/discussions")
     app.register_blueprint(search_bp,        url_prefix="/api/search")
+    app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
 
 app = create_app()
 

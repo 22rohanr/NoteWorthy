@@ -17,6 +17,7 @@ from firebase_admin import auth as firebase_auth
 from services.review_service import ReviewService
 from services.fragrance_service import FragranceService
 from services.user_service import UserService
+from services.notification_service import NotificationService
 from cache import get_cache
 
 reviews_bp = Blueprint("reviews", __name__)
@@ -24,6 +25,7 @@ reviews_bp = Blueprint("reviews", __name__)
 _review_service = ReviewService()
 _fragrance_service = FragranceService()
 _user_service = UserService()
+_notification_service = NotificationService()
 _cache = get_cache()
 
 
@@ -218,5 +220,18 @@ def upvote_review(review_id: str):
         return jsonify({"error": "Review not found"}), 404
 
     added = _review_service.toggle_upvote(review_id, uid)
+
+    if added:
+        review_author = review.get("userId", "")
+        actor = _user_service.get_by_id(uid) or {}
+        actor_name = actor.get("username", "Someone")
+        _notification_service.create(
+            recipient_id=review_author,
+            actor_id=uid,
+            notification_type="review_upvote",
+            message=f"{actor_name} upvoted your review",
+            reference_id=review_id,
+        )
+
     return jsonify({"success": True, "upvoted": added}), 200
 

@@ -18,11 +18,13 @@ from firebase_admin import auth as firebase_auth
 
 from services.discussion_service import DiscussionService
 from services.user_service import UserService
+from services.notification_service import NotificationService
 
 discussions_bp = Blueprint("discussions", __name__)
 
 _discussion_service = DiscussionService()
 _user_service = UserService()
+_notification_service = NotificationService()
 
 VALID_CATEGORIES = {"Recommendation", "Comparison", "General", "News"}
 
@@ -141,6 +143,15 @@ def add_reply(discussion_id: str):
         "authorName": user.get("username", ""),
         "authorAvatar": user.get("avatar"),
     })
+
+    discussion_author = discussion.get("authorId", "")
+    _notification_service.create(
+        recipient_id=discussion_author,
+        actor_id=uid,
+        notification_type="discussion_reply",
+        message=f"{user.get('username', 'Someone')} replied to your discussion \"{discussion.get('title', '')}\"",
+        reference_id=discussion_id,
+    )
 
     return jsonify({"reply": reply}), 201
 

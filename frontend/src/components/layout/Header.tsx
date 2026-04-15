@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, User, Heart, Menu, LogOut, PenLine, X } from 'lucide-react';
+import { Search, User, Heart, Menu, LogOut, PenLine, X, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUnreadCount } from '@/hooks/use-notifications';
 
 export function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -28,6 +29,7 @@ export function Header() {
     navigate(`/search?q=${encodeURIComponent(q)}`);
   };
 
+  const { count: unreadCount } = useUnreadCount();
   const isLoggedIn = !loading && !!firebaseUser;
   const displayName =
     userProfile?.username ||
@@ -117,6 +119,19 @@ export function Header() {
               </Button>
             )}
           </div>
+
+          {isLoggedIn && (
+            <Button variant="ghost" size="icon" className="relative h-9 w-9" asChild>
+              <Link to="/notifications">
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+            </Button>
+          )}
 
           <Button variant="ghost" size="icon" className="h-9 w-9" asChild>
             <Link to="/collection">

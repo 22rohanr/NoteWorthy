@@ -22,8 +22,10 @@ def test_upvote_returns_404_for_missing_review(mock_svc, client):
     assert resp.status_code == 404
 
 
+@patch("routes.reviews._notification_service")
+@patch("routes.reviews._user_service")
 @patch("routes.reviews._review_service")
-def test_upvote_toggle_adds_upvote(mock_svc, client):
+def test_upvote_toggle_adds_upvote(mock_svc, mock_user_svc, mock_notif_svc, client):
     """Upvoting a review the first time returns upvoted=True."""
     mock_svc.get_by_id.return_value = {
         "id": "r1",
@@ -32,6 +34,7 @@ def test_upvote_toggle_adds_upvote(mock_svc, client):
         "userId": "other-user",
     }
     mock_svc.toggle_upvote.return_value = True
+    mock_user_svc.get_by_id.return_value = {"id": "test-uid", "username": "Alice"}
 
     resp = client.post(
         "/api/reviews/r1/upvote",
@@ -41,6 +44,7 @@ def test_upvote_toggle_adds_upvote(mock_svc, client):
     data = resp.get_json()
     assert data["upvoted"] is True
     mock_svc.toggle_upvote.assert_called_once_with("r1", "test-uid")
+    mock_notif_svc.create.assert_called_once()
 
 
 @patch("routes.reviews._review_service")
@@ -64,11 +68,14 @@ def test_upvote_toggle_removes_upvote(mock_svc, client):
     mock_svc.toggle_upvote.assert_called_once_with("r1", "test-uid")
 
 
+@patch("routes.reviews._notification_service")
+@patch("routes.reviews._user_service")
 @patch("routes.reviews._review_service")
-def test_upvote_second_call_toggles(mock_svc, client):
+def test_upvote_second_call_toggles(mock_svc, mock_user_svc, mock_notif_svc, client):
     """Two upvote calls toggle the state."""
     mock_svc.get_by_id.return_value = {"id": "r1", "upvotes": 0, "upvotedBy": [], "userId": "x"}
     mock_svc.toggle_upvote.side_effect = [True, False]
+    mock_user_svc.get_by_id.return_value = {"id": "test-uid", "username": "Alice"}
 
     headers = {"Authorization": "Bearer fake-token"}
 

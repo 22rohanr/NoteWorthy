@@ -195,13 +195,14 @@ def test_patch_profile_updates_preferences(mock_user_svc, client):
     assert call_args["preferences"]["favoriteNotes"] == ["Rose", "Oud"]
 
 
+@patch("routes.auth._notification_service")
 @patch("routes.auth._user_service")
-def test_follow_user_success(mock_user_svc, client):
-    # follow_user: get_by_id(uid), get_by_id(target), then get_by_id(target) again for isPrivate
+def test_follow_user_success(mock_user_svc, mock_notif_svc, client):
     mock_user_svc.get_by_id.side_effect = [
         {"id": "test-uid"},
         {"id": "target-uid"},
         {"id": "target-uid", "isPrivate": False},
+        {"id": "test-uid", "username": "Alice"},
     ]
 
     resp = client.post(
@@ -211,6 +212,7 @@ def test_follow_user_success(mock_user_svc, client):
 
     assert resp.status_code == 200
     mock_user_svc.follow_user.assert_called_once_with("test-uid", "target-uid")
+    mock_notif_svc.create.assert_called_once()
 
 
 @patch("routes.auth._user_service")
