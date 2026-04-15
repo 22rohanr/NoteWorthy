@@ -65,6 +65,9 @@ export function Header() {
           <Link to="/discussions" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Discussions
           </Link>
+          <Link to="/compare" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Compare
+          </Link>
         </nav>
 
         {/* Actions */}
@@ -249,6 +252,7 @@ export function Header() {
                 { to: '/notes', label: 'Notes' },
                 { to: '/reviews', label: 'Reviews' },
                 { to: '/discussions', label: 'Discussions' },
+                { to: '/compare', label: 'Compare' },
               ].map(({ to, label }) => (
                 <Link
                   key={to}

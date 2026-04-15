@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { Star, Heart } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Star, Heart, Scale } from 'lucide-react';
 import { Fragrance } from '@/types/fragrance';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -14,6 +14,7 @@ interface FragranceCardProps {
 
 export function FragranceCard({ fragrance, className, style }: FragranceCardProps) {
   const [imgError, setImgError] = useState(false);
+  const navigate = useNavigate();
   const { userProfile } = useAuth();
   const { addToCollection, removeFromCollection, getTabsForFragrance, isMutating } =
     useCollection();
@@ -66,18 +67,31 @@ export function FragranceCard({ fragrance, className, style }: FragranceCardProp
           </div>
         )}
 
-        {/* Wishlist button */}
-        <button
-          onClick={handleWishlistToggle}
-          className="absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <Heart
-            className={cn(
-              "h-4 w-4 transition-colors",
-              isWishlisted ? "fill-primary text-primary" : "text-foreground"
-            )}
-          />
-        </button>
+        {/* Action buttons */}
+        <div className="absolute top-3 right-3 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={handleWishlistToggle}
+            className="p-2 rounded-full bg-background/80 backdrop-blur-sm"
+          >
+            <Heart
+              className={cn(
+                "h-4 w-4 transition-colors",
+                isWishlisted ? "fill-primary text-primary" : "text-foreground"
+              )}
+            />
+          </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              navigate(`/compare?ids=${fragrance.id}`);
+            }}
+            className="p-2 rounded-full bg-background/80 backdrop-blur-sm"
+            title="Compare"
+          >
+            <Scale className="h-4 w-4 text-foreground" />
+          </button>
+        </div>
 
         {/* Concentration badge */}
         <span className="absolute bottom-3 left-3 px-2 py-0.5 text-xs font-medium bg-background/90 backdrop-blur-sm rounded">

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Star, Heart, Share2, Plus, Check, Info, ChevronDown, PenLine } from 'lucide-react';
+import { ArrowLeft, Star, Heart, Share2, Plus, Check, Info, ChevronDown, PenLine, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/layout/Header';
@@ -191,6 +191,16 @@ export default function FragranceDetail() {
                 onClick={handleShare}
               >
                 <Share2 className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm"
+                asChild
+              >
+                <Link to={`/compare?ids=${id}`}>
+                  <Scale className="h-5 w-5" />
+                </Link>
               </Button>
             </div>
           </div>
