@@ -223,6 +223,7 @@ def upvote_review(review_id: str):
 
     if added:
         review_author = review.get("userId", "")
+        fragrance_id = review.get("fragranceId", "")
         actor = _user_service.get_by_id(uid) or {}
         actor_name = actor.get("username", "Someone")
         _notification_service.create(
@@ -230,7 +231,7 @@ def upvote_review(review_id: str):
             actor_id=uid,
             notification_type="review_upvote",
             message=f"{actor_name} upvoted your review",
-            reference_id=review_id,
+            reference_id=fragrance_id,
         )
 
     return jsonify({"success": True, "upvoted": added}), 200

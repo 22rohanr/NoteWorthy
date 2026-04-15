@@ -140,7 +140,7 @@ export default function Notifications() {
     } else if (n.type === "discussion_reply" && n.referenceId) {
       navigate(`/discussions/${n.referenceId}`);
     } else if (n.type === "review_upvote" && n.referenceId) {
-      navigate(`/reviews`);
+      navigate(`/fragrance/${n.referenceId}`);
     }
   };
 
