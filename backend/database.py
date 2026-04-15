@@ -11,6 +11,10 @@ import json
 import os
 import threading
 
+# Must be set before any gRPC import to avoid DNS resolution hangs
+# in serverless environments (Vercel, AWS Lambda, etc.).
+os.environ.setdefault("GRPC_DNS_RESOLVER", "native")
+
 import firebase_admin
 from firebase_admin import credentials, firestore
 
